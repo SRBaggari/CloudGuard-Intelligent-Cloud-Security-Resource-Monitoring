@@ -153,7 +153,7 @@ describe("api client", () => {
   });
   it("reports a friendly message when the backend is unreachable", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
-    const err = await api("/api/x").catch((e) => e);
+    const err = (await api("/api/x").catch((e: unknown) => e)) as ApiError;
     expect(err).toBeInstanceOf(ApiError);
     expect(err.message).toMatch(/Cannot reach the CloudGuard API/);
   });
