@@ -132,15 +132,15 @@ function MetricCard({ m, horizon }: { m: MetricReport; horizon: number }) {
   );
 }
 
-export default function Capacity() {
+export default function Capacity({ demo = false }: { demo?: boolean }) {
   const [lookback, setLookback] = useState(7);
   const [horizon, setHorizon] = useState(30);
-  const { data, error, loading, reload } = useApi<CapacityReport>("/api/capacity", { query: { lookback_days: lookback, horizon_days: horizon }, interval: 120000 });
+  const { data, error, loading, reload } = useApi<CapacityReport>("/api/capacity", { query: { lookback_days: lookback, horizon_days: horizon, demo: demo || undefined }, interval: 120000 });
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Capacity Planning"
-        description="Utilisation trends from measured history and estimated future requirements for this host."
+      <PageHeader title={demo ? "Capacity planning (demo node)" : "Capacity Planning"}
+        description={demo ? "Sample history of the demonstration node — not this host." : "Utilisation trends from measured history and estimated future requirements for this host."}
         actions={<>
           <Select value={lookback} onChange={(e) => setLookback(Number(e.target.value))} className="w-44" aria-label="History window">
             {[1, 7, 30, 90].map((d) => <option key={d} value={d}>History: {d} day{d > 1 ? "s" : ""}</option>)}

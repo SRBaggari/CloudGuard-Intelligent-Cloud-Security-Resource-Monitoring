@@ -47,8 +47,8 @@ function layout(nodes: TNode[]) {
   return { pos, width: 960, height };
 }
 
-export default function TopologyPage() {
-  const { data, error, loading, reload } = useApi<Topology>("/api/topology", { interval: 10000 });
+export default function TopologyPage({ demo = false }: { demo?: boolean }) {
+  const { data, error, loading, reload } = useApi<Topology>("/api/topology", { query: { include_demo: demo || undefined }, interval: 10000 });
   useLiveChannel("monitoring", (m) => m.type === "containers.synced" && reload());
   const [selected, setSelected] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
@@ -81,9 +81,9 @@ export default function TopologyPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Infrastructure Topology"
+      {!demo && <PageHeader title="Infrastructure Topology"
         description="Live map of monitored hosts, hypervisors, containers, networks and virtual machines. Colour and label show health; badges count active alerts."
-        actions={<Button icon={<RefreshCw className="size-4" />} onClick={reload}>Refresh</Button>} />
+        actions={<Button icon={<RefreshCw className="size-4" />} onClick={reload}>Refresh</Button>} />}
 
       {data && !data.integrations.docker.available && !data.demo && (
         <Banner tone="warning" title="Docker Engine not connected">Containers are not shown because Docker is unavailable. {data.integrations.docker.message}</Banner>
