@@ -10,8 +10,8 @@ import { useAuth } from "@/lib/auth";
 import { timeAgo } from "@/lib/format";
 import { useLiveChannel } from "@/lib/hooks";
 import { useTheme } from "@/lib/theme";
-import type { Alert, Page } from "@/lib/types";
-import { SeverityBadge, useToast } from "@/components/ui";
+import type { AppNotification, NotificationPage } from "@/lib/types";
+import { useToast } from "@/components/ui";
 
 const NAV = [
   { section: "Overview", items: [
@@ -111,19 +111,23 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
+const SEV_DOT: Record<string, string> = {
+  critical: "bg-critical", high: "bg-serious", medium: "bg-warning", low: "bg-low", info: "bg-accent",
+};
+
 function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [total, setTotal] = useState(0);
+  const [items, setItems] = useState<AppNotification[]>([]);
+  const [unread, setUnread] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const toast = useToast();
   const navigate = useNavigate();
 
   const load = () =>
-    api<Page<Alert>>("/api/security/alerts", { query: { status: "active", page_size: 6 } })
+    api<NotificationPage>("/api/notifications", { query: { page_size: 8 } })
       .then((p) => {
-        setAlerts(p.items);
-        setTotal(p.total);
+        setItems(p.items);
+        setUnread(p.unread);
       })
       .catch(() => {});
 
@@ -131,16 +135,14 @@ function NotificationBell() {
     load();
   }, []);
 
-  const connected = useLiveChannel("alerts", (msg) => {
-    if (msg.type === "alert.created") {
-      const a: Alert = msg.alert;
+  const connected = useLiveChannel("notifications", (msg) => {
+    if (msg.type === "notification.created" || msg.type === "notification.updated") {
+      const n: AppNotification = msg.notification;
       toast({
-        tone: a.severity === "critical" || a.severity === "high" ? "critical" : "warning",
-        title: `New ${a.severity} alert`,
-        message: a.title,
+        tone: n.severity === "critical" || n.severity === "high" ? "critical" : n.severity === "medium" ? "warning" : "info",
+        title: n.category === "alert" ? `${n.severity[0].toUpperCase()}${n.severity.slice(1)} alert` : n.title,
+        message: n.category === "alert" ? n.title : n.message,
       });
-      load();
-    } else if (msg.type === "alert.updated") {
       load();
     }
   });
@@ -151,51 +153,66 @@ function NotificationBell() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
+  async function openItem(n: AppNotification) {
+    setOpen(false);
+    if (!n.is_read) await api(`/api/notifications/${n.id}/read`, { method: "POST" }).catch(() => {});
+    load();
+    if (n.link) navigate(n.link);
+  }
+
+  async function readAll() {
+    await api("/api/notifications/read-all", { method: "POST" }).catch(() => {});
+    load();
+  }
+
   return (
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
         className="relative rounded-lg p-2 text-ink-2 hover:bg-surface-2 hover:text-ink"
-        aria-label={`Notifications: ${total} active alerts`}
+        aria-label={`Notifications: ${unread} unread`}
       >
         <Bell className="size-4.5" />
-        {total > 0 && (
+        {unread > 0 && (
           <span className="absolute -top-0.5 -right-0.5 grid min-w-4.5 place-items-center rounded-full bg-critical px-1 text-[10px] font-bold text-white">
-            {total > 99 ? "99+" : total}
+            {unread > 99 ? "99+" : unread}
           </span>
         )}
       </button>
       {open && (
-        <div className="animate-fade-up absolute right-0 z-50 mt-2 w-96 overflow-hidden rounded-xl border border-line-strong bg-surface shadow-2xl">
+        <div className="animate-fade-up absolute right-0 z-50 mt-2 w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-line-strong bg-surface shadow-2xl">
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <p className="text-sm font-semibold">Active alerts</p>
-            <span className="flex items-center gap-1.5 text-[11px] text-muted">
-              <span className={clsx("size-1.5 rounded-full", connected ? "live-dot bg-good" : "bg-muted")} />
-              {connected ? "Live" : "Offline"}
-            </span>
+            <div>
+              <p className="text-sm font-semibold">Notifications</p>
+              <span className="flex items-center gap-1.5 text-[11px] text-muted">
+                <span className={clsx("size-1.5 rounded-full", connected ? "live-dot bg-good" : "bg-muted")} />
+                {connected ? "Live" : "Offline"} · {unread} unread
+              </span>
+            </div>
+            <button onClick={readAll} disabled={!unread} className="text-xs font-medium text-accent hover:underline disabled:text-muted disabled:no-underline">
+              Mark all as read
+            </button>
           </div>
           <ul className="max-h-96 divide-y divide-line overflow-y-auto">
-            {alerts.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted">No active alerts. All clear.</li>}
-            {alerts.map((a) => (
-              <li key={a.id}>
-                <button
-                  className="w-full px-4 py-3 text-left hover:bg-surface-2"
-                  onClick={() => {
-                    setOpen(false);
-                    navigate(`/alerts?id=${a.id}`);
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <SeverityBadge severity={a.severity} />
-                    <span className="text-[11px] text-muted">{timeAgo(a.last_seen_at)}</span>
-                  </div>
-                  <p className="mt-1.5 line-clamp-2 text-sm text-ink">{a.title}</p>
+            {items.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted">No notifications yet.</li>}
+            {items.map((n) => (
+              <li key={n.id}>
+                <button className={clsx("flex w-full gap-3 px-4 py-3 text-left hover:bg-surface-2", !n.is_read && "bg-accent/5")} onClick={() => openItem(n)}>
+                  <span className={clsx("mt-1.5 size-2 shrink-0 rounded-full", n.is_read ? "bg-surface-3" : SEV_DOT[n.severity])} aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-medium text-muted uppercase">{n.category} · {n.severity}</span>
+                      <span className="text-[11px] text-muted">{timeAgo(n.updated_at)}</span>
+                    </span>
+                    <span className={clsx("mt-0.5 line-clamp-2 block text-sm", n.is_read ? "text-ink-2" : "font-medium text-ink")}>{n.title}</span>
+                    {!n.is_read && <span className="sr-only">(unread)</span>}
+                  </span>
                 </button>
               </li>
             ))}
           </ul>
-          <Link to="/alerts" onClick={() => setOpen(false)} className="block border-t border-line px-4 py-2.5 text-center text-xs font-medium text-accent hover:bg-surface-2">
-            Open Alert Center
+          <Link to="/notifications" onClick={() => setOpen(false)} className="block border-t border-line px-4 py-2.5 text-center text-xs font-medium text-accent hover:bg-surface-2">
+            Open Notification Center
           </Link>
         </div>
       )}
