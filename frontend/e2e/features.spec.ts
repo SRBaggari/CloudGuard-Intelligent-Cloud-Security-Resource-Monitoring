@@ -76,3 +76,16 @@ test("notification center lists notifications and marks them read", async ({ pag
     await expect(page.getByRole("button", { name: "Notifications: 0 unread" })).toBeVisible();
   }
 });
+
+test("topology map renders real resources and shows node details", async ({ page }) => {
+  await login(page);
+  await page.goto("/topology");
+  await expect(page.getByRole("heading", { name: "Infrastructure Topology" })).toBeVisible();
+  const host = page.getByRole("button", { name: /^Host .*:/ }).first();
+  await expect(host).toBeVisible();
+  await host.click();
+  await expect(page.getByText("Connections (")).toBeVisible();
+  await expect(page.getByText("Hostname")).toBeVisible();
+  await page.waitForTimeout(400);
+  await shot(page, "19-topology");
+});
