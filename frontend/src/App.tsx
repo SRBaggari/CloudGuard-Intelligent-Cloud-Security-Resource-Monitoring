@@ -27,6 +27,7 @@ const Notifications = lazy(() => import("@/pages/Notifications"));
 const Incidents = lazy(() => import("@/pages/Incidents"));
 const IncidentDetail = lazy(() => import("@/pages/IncidentDetail"));
 const DemoCenter = lazy(() => import("@/pages/DemoCenter"));
+const About = lazy(() => import("@/pages/About"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 export function AppRoutes() {
@@ -50,6 +51,7 @@ export function AppRoutes() {
             <Route path="profile" element={<Profile />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="demo" element={<DemoCenter />} />
+            <Route path="about" element={<About />} />
             <Route path="incidents" element={<Incidents />} />
             <Route path="incidents/:id" element={<IncidentDetail />} />
             <Route element={<AdminRoute />}>
