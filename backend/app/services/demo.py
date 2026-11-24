@@ -20,7 +20,7 @@ from typing import Any, Callable
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.core.database import utcnow
+from app.core.database import ensure_aware, utcnow
 from app.models import Alert, Container, Device, Incident, SecurityEvent, SystemMetric, User, VirtualMachine
 from app.security_engine import engine
 from app.services.alerts import demo_scope, detect, record_event
@@ -140,10 +140,11 @@ def _cpu_spike(db: Session, user: User) -> list[Alert | None]:
     if dev is None:
         raise DemoNotReady("Create the demonstration environment first")
     last = db.scalar(select(SystemMetric).where(SystemMetric.device_id == dev.id).order_by(SystemMetric.timestamp.desc()).limit(1))
-    now = utcnow()
+    # always place the spike after the newest existing sample so it forms the "last N samples" the rule reads
+    base = max(utcnow(), ensure_aware(last.timestamp) if last else utcnow())
     rows = []
     for k, cpu in enumerate((96.4, 97.8, 98.6)):
-        m = _metric(dev, now - timedelta(seconds=10 * (2 - k)), 999 + k)
+        m = _metric(dev, base + timedelta(seconds=10 * (k + 1)), 999 + k)
         m.cpu_percent = cpu
         db.add(m)
         rows.append(m)
