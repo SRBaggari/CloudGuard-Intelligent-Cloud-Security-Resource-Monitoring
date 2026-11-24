@@ -81,6 +81,7 @@ def _summarise(attrs: dict) -> dict[str, Any]:
         "exit_code": state.get("ExitCode"),
         "started_at": state.get("StartedAt"),
         "finished_at": state.get("FinishedAt"),
+        "networks": sorted(((attrs.get("NetworkSettings") or {}).get("Networks") or {}).keys()),
     }
 
 
@@ -203,6 +204,7 @@ class MockDockerAdapter:
             self.containers[cid] = {
                 "id": cid, "short_id": cid[:12], "name": name, "image": image, "status": status,
                 "health": health, "restart_count": 0, "exit_code": 0, "started_at": now, "finished_at": None,
+                "networks": ["bridge"] if name == "demo-db" else ["bridge", "demo-app-net"],
             }
         self.stats_map: dict[str, dict[str, Any]] = {
             cid: {"cpu_percent": 3.5 * (i + 1), "memory_usage": 50_000_000 * (i + 1), "memory_limit": 1_000_000_000,

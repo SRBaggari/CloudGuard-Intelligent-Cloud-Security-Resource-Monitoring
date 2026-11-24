@@ -164,6 +164,7 @@ class ContainerOut(ORM):
     memory_usage: int
     net_rx_bytes: int
     net_tx_bytes: int
+    networks: list[str] = []
     owner_id: int | None
     last_seen_at: DT | None
 

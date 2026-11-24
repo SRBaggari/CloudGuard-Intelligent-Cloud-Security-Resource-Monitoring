@@ -45,6 +45,7 @@ def sync_containers(db: Session, with_stats: bool = True) -> dict:
         row.health = it["health"]
         row.restart_count = it["restart_count"]
         row.exit_code = it.get("exit_code")
+        row.networks = it.get("networks", [])
         row.last_seen_at = now
         if with_stats and it["status"] == "running":
             try:
