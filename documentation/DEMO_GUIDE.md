@@ -39,10 +39,38 @@ the presenting machine. All demo actions target **only this computer**.
 | 12 | **Analytics & ML** | Overview charts (alerts per day by severity, MTTR). *Anomaly detection*: if below 200 samples, show the “more data is needed” state; otherwise **Train model**, show hold-out evaluation, score chart with flagged points and explanations such as “CPU 46.6% is 3.2σ above normal”. |
 | 13 | **Reports** | Generate a PDF for the last 24 h (health, utilisation chart, incidents, containers, VMs, anomalies, alert history); also a CSV. |
 | 14 | **Audit log & API docs** | Show every action recorded; open **http://127.0.0.1:8000/docs** (Swagger). |
-| 15 | **Tests** | `pytest` (80 backend tests), `npm test` (16 component tests), `npx playwright test` (10 E2E tests). |
+| 15 | **Tests** | `pytest` (145 backend tests), `npm test` (17 component tests), `npx playwright test` (19 E2E tests). |
+
+## Built-in Demo & Learning mode (no Docker or VirtualBox needed)
+
+The **Demo & Learning** page provides a separate, clearly labelled demonstration environment — ideal
+when the presenting machine has no Docker/VirtualBox or you want a richer picture. All demo rows are
+flagged and named `demo…`; real dashboards, alert lists, reports, analytics and compliance ignore them.
+
+| # | Show | What to do |
+|---|---|---|
+| D1 | **Demo & Learning** | Click **Create demo environment** → a demo node with 3 days of sample metrics, 5 containers on 2 networks and 2 VMs. |
+| D2 | **Scenarios** | Run **CPU saturation** and **Container crash** — both go through the *real* rule engine (badge “Real rule engine”); toasts and the bell show `[DEMO]` notifications. |
+| D3 | **Incident walkthrough** | Creates `INC-…` from the open demo alerts, acknowledges it and adds a note. Open it: stage stepper, timeline, add a note, **Record a manual action**, then **Resolve…** with a summary (linked alerts resolve too). |
+| D4 | **Demo topology** tab | Graph with the crashed `demo-api` in red, networks dashed; click nodes for details and connections. |
+| D5 | **Demo capacity forecast** tab | Measured history (solid), estimate (dashed) with ~95% band; disk shows *Approaching threshold* with an ETA. |
+| D6 | **Alert Center** | Demo alerts are hidden until **Show demonstration data** is ticked — proof of separation. |
+| D7 | **Project information** | Concepts: cloud computing, virtualisation, containerisation, security monitoring, and how each module maps to them. |
+
+## Enhancement modules (real data)
+
+| Show | What to do |
+|---|---|
+| **Notifications** | Bell → unread count, mark read; Notification Center → filters, history, minimum-severity preference. A repeated detection does not create a second notification. |
+| **Topology** | Real host (and Docker/VirtualBox resources when installed), live health. |
+| **Capacity Planning** | With < 3 h of history it explains that more data is needed; later it shows trends and threshold ETAs, all labelled as estimates. |
+| **Compliance** | **Run checks now** → posture score and grade; evidence per check (e.g. Windows Firewall state via `netsh`); assess a manual item with evidence; **Posture report (PDF)**. |
+| **Audit Log** | Filter by category/user/date, **Export CSV**. |
+| **Settings** | Security thresholds panel, **System health diagnostics**; Profile → Appearance (saved per user). |
 
 ## Reset after the demo
 
+* Demo & Learning → **Reset demo data** (removes only demonstration rows).
 * Resolve remaining alerts in the Alert Center; remove the FIM demo directory.
 * Delete `C:\CloudGuardDemo` and demo containers (`docker rm -f demo-web demo-api`).
 * For a completely fresh database with SQLite, stop the backend and delete `backend/data/`.
