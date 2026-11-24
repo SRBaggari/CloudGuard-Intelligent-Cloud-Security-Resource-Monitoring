@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -67,8 +68,23 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def _walk(root: Path, recursive: bool) -> dict[str, tuple[str, int, datetime]]:
+def _hash_with_retry(f: Path, attempts: int = 3) -> tuple[str, int, datetime]:
+    """Files can be briefly locked (e.g. by antivirus scanning a new file); retry before giving up."""
+    for i in range(attempts):
+        try:
+            st = f.stat()
+            return sha256_file(f), st.st_size, datetime.fromtimestamp(st.st_mtime, timezone.utc)
+        except PermissionError:
+            if i == attempts - 1:
+                raise
+            time.sleep(0.25 * (i + 1))
+    raise PermissionError(str(f))
+
+
+def _walk(root: Path, recursive: bool) -> tuple[dict[str, tuple[str, int, datetime]], set[str]]:
+    """Return (hashed files, paths that exist but could not be read)."""
     result: dict[str, tuple[str, int, datetime]] = {}
+    unreadable: set[str] = set()
     iterator = root.rglob("*") if recursive else root.glob("*")
     for f in iterator:
         if len(result) >= MAX_FILES:
@@ -76,16 +92,17 @@ def _walk(root: Path, recursive: bool) -> dict[str, tuple[str, int, datetime]]:
         try:
             if not f.is_file() or f.is_symlink():
                 continue
-            st = f.stat()
-            result[str(f)] = (sha256_file(f), st.st_size, datetime.fromtimestamp(st.st_mtime, timezone.utc))
-        except (PermissionError, OSError):
+            result[str(f)] = _hash_with_retry(f)
+        except FileNotFoundError:  # removed while scanning
             continue
-    return result
+        except OSError:
+            unreadable.add(str(f))
+    return result, unreadable
 
 
 def create_baseline(db: Session, directory: MonitoredDirectory) -> int:
     root = validate_directory(directory.path)
-    files = _walk(root, directory.recursive)
+    files, _ = _walk(root, directory.recursive)
     db.execute(delete(FileIntegrityRecord).where(FileIntegrityRecord.directory_id == directory.id))
     now = utcnow()
     for path, (digest, size, mtime) in files.items():
@@ -101,9 +118,10 @@ def scan_directory(db: Session, directory: MonitoredDirectory) -> dict:
     """Compare the directory with its baseline and record changes + alerts."""
     if directory.baseline_at is None:
         n = create_baseline(db, directory)
-        return {"directory": directory.path, "baseline_created": True, "files": n, "modified": 0, "new": 0, "deleted": 0}
+        return {"directory": directory.path, "baseline_created": True, "files": n, "modified": 0, "new": 0, "deleted": 0,
+                "unreadable": 0}
     root = validate_directory(directory.path)
-    current = _walk(root, directory.recursive)
+    current, unreadable = _walk(root, directory.recursive)
     records = {r.file_path: r for r in db.scalars(
         select(FileIntegrityRecord).where(FileIntegrityRecord.directory_id == directory.id)).all()}
     now = utcnow()
@@ -128,7 +146,8 @@ def scan_directory(db: Session, directory: MonitoredDirectory) -> dict:
         rec.sha256, rec.size, rec.modified_at, rec.last_checked_at = digest, size, mtime, now
 
     for path, rec in records.items():
-        if path not in current and rec.status != "deleted":
+        # an unreadable file still exists - never report it as deleted
+        if path not in current and path not in unreadable and rec.status != "deleted":
             changes.append(FileIntegrityChange(directory_id=directory.id, file_path=path, change_type="deleted",
                                                old_hash=rec.sha256, detected_at=now))
             rec.status = "deleted"
@@ -142,7 +161,7 @@ def scan_directory(db: Session, directory: MonitoredDirectory) -> dict:
     summary = {"directory": directory.path, "baseline_created": False, "files": len(current),
                "modified": sum(c.change_type == "modified" for c in changes),
                "new": sum(c.change_type == "new" for c in changes),
-               "deleted": sum(c.change_type == "deleted" for c in changes)}
+               "deleted": sum(c.change_type == "deleted" for c in changes), "unreadable": len(unreadable)}
     if changes:
         rule = get_rule(db, "fim_change")
         deleted_sev = (rule.params or {}).get("deleted_severity", "high") if rule else "high"

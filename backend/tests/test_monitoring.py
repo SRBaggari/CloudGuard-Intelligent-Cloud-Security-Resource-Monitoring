@@ -10,7 +10,7 @@ from tests.conftest import insert_metrics
 
 
 def test_collector_returns_real_values():
-    c = SystemCollector()
+    c = SystemCollector(use_process_worker=False)
     c.collect()
     time.sleep(0.3)
     m = c.collect()
@@ -23,11 +23,24 @@ def test_collector_returns_real_values():
     assert info["uptime_seconds"] > 0 and info["cpu_logical_cores"] >= 1
 
 
-def test_process_list_and_interfaces():
-    c = SystemCollector()
+def test_process_list_in_process_and_interfaces():
+    c = SystemCollector(use_process_worker=False)
     procs = c.processes(limit=5)
     assert 0 < len(procs) <= 5 and all("pid" in p and p["pid"] != 0 for p in procs)
+    assert {"name", "cpu_percent", "memory_percent", "memory_rss", "username"} <= procs[0].keys()
+    by_mem = c.processes(limit=5, sort="memory")
+    assert by_mem == sorted(by_mem, key=lambda p: p["memory_rss"], reverse=True)
+    assert c.processes(limit=5) is procs  # cached snapshot
     assert isinstance(c.network_interfaces(), list)
+
+
+def test_process_scan_runs_in_worker_process():
+    c = SystemCollector(use_process_worker=True)
+    try:
+        procs = c.processes(limit=3)
+        assert len(procs) == 3 and c._pool is not None  # scanned out-of-process, no fallback
+    finally:
+        c.shutdown()
 
 
 def test_collect_and_store_persists(db):
@@ -70,6 +83,10 @@ def test_alert_deduplication(db):
     engine.evaluate_metric(db, rows[-1], "host1", None)
     alerts = db.scalars(select(Alert).where(Alert.fingerprint.like("memory_threshold%"))).all()
     assert len(alerts) == 1 and alerts[0].occurrences == 2 and alerts[0].severity == "high"
+    rows = insert_metrics(db, 3, mem=91.0, start_minutes_ago=0.001)
+    engine.evaluate_metric(db, rows[-1], "host1", None)
+    db.refresh(alerts[0])
+    assert alerts[0].occurrences == 3 and "91.0%" in alerts[0].title  # title tracks latest value
 
 
 def test_disabled_rule_does_not_alert(client, admin, db):

@@ -51,6 +51,7 @@ def raise_alert(
     if existing:
         existing.occurrences += 1
         existing.last_seen_at = now
+        existing.title = title  # reflect the latest detection
         existing.description = description
         if SEVERITY_ORDER[severity] > SEVERITY_ORDER[existing.severity]:
             existing.severity = severity

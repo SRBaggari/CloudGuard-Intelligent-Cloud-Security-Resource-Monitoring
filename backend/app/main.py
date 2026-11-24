@@ -58,6 +58,8 @@ async def lifespan(app: FastAPI):
     for t in tasks:
         t.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
+    from app.monitoring.collector import collector
+    collector.shutdown()
 
 
 settings_ = get_settings()

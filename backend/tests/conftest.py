@@ -31,6 +31,9 @@ from app.core.database import Base, SessionLocal, engine, utcnow  # noqa: E402
 from app.core.ratelimit import limiter  # noqa: E402
 from app.docker_integration.adapter import MockDockerAdapter, set_docker_adapter  # noqa: E402
 from app.main import app  # noqa: E402
+from app.monitoring.collector import collector  # noqa: E402
+
+collector._pool_failed = True  # API tests scan processes in-process (worker covered by its own test)
 from app.ml_engine.detector import detector  # noqa: E402
 from app.models import SystemMetric  # noqa: E402
 from app.monitoring.service import get_local_device  # noqa: E402

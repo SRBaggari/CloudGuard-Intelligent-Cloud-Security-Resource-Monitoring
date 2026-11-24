@@ -25,6 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.database import ensure_aware
 from app.models import AnomalyRecord, SystemMetric
 
 FEATURES = ["cpu_percent", "memory_percent", "disk_percent", "net_send_rate", "net_recv_rate",
@@ -116,8 +117,8 @@ class AnomalyDetector:
             "n_samples": int(len(X)),
             "contamination": contamination,
             "z_threshold": z_threshold,
-            "data_start": metrics[0].timestamp.isoformat(),
-            "data_end": metrics[-1].timestamp.isoformat(),
+            "data_start": ensure_aware(metrics[0].timestamp).isoformat(),
+            "data_end": ensure_aware(metrics[-1].timestamp).isoformat(),
             "feature_mean": dict(zip(FEATURES, map(float, X.mean(axis=0)))),
             "feature_std": dict(zip(FEATURES, map(float, X.std(axis=0)))),
             # std floor so features that were constant during training do not explode the z-score

@@ -60,6 +60,40 @@ def test_fim_baseline_and_change_detection(client, admin, db, watched: Path):
     assert all(f["status"] == "baseline" for f in files["items"])
 
 
+def test_fim_unreadable_file_is_not_reported_deleted(db, watched, monkeypatch):
+    from app.models import MonitoredDirectory
+    d = MonitoredDirectory(path=str(watched), recursive=True)
+    db.add(d)
+    db.commit()
+    fim.create_baseline(db, d)
+    locked = str(watched / "config.ini")
+    real = fim._hash_with_retry
+
+    def flaky(f, attempts=3):
+        if str(f) == locked:
+            raise PermissionError("locked by another process")
+        return real(f, attempts)
+
+    monkeypatch.setattr(fim, "_hash_with_retry", flaky)
+    r = fim.scan_directory(db, d)
+    assert (r["deleted"], r["unreadable"]) == (0, 1)
+
+
+def test_fim_retries_transient_lock(watched, monkeypatch):
+    calls = {"n": 0}
+    real = fim.sha256_file
+
+    def sometimes_locked(path):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise PermissionError("busy")
+        return real(path)
+
+    monkeypatch.setattr(fim, "sha256_file", sometimes_locked)
+    digest, size, _ = fim._hash_with_retry(watched / "index.html")
+    assert size == 5 and len(digest) == 64 and calls["n"] == 2
+
+
 def test_fim_rejects_unsafe_paths(client, admin, watched):
     assert client.post("/api/integrity/directories", json={"path": "relative/path"}, headers=admin).status_code == 400
     assert client.post("/api/integrity/directories", json={"path": str(watched / "nope")}, headers=admin).status_code == 400

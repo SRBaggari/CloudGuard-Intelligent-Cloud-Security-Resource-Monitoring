@@ -1,15 +1,21 @@
 """Real local system metrics collection using psutil (no simulated values)."""
 from __future__ import annotations
 
+import logging
 import os
 import platform
 import socket
 import threading
 import time
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timezone
 from typing import Any
 
 import psutil
+
+from app.monitoring import procscan
+
+log = logging.getLogger("cloudguard.collector")
 
 
 def system_disk_path() -> str:
@@ -33,16 +39,27 @@ def primary_ip() -> str:
 class SystemCollector:
     """Collects host metrics. Keeps previous network counters to compute rates."""
 
-    def __init__(self) -> None:
+    def __init__(self, use_process_worker: bool = True) -> None:
         self._lock = threading.Lock()
         self._last_net: tuple[float, int, int] | None = None
-        self._procs: dict[int, psutil.Process] = {}
+        self._proc_lock = threading.Lock()
+        self._proc_cache: dict[tuple[int, str], tuple[float, list[dict[str, Any]]]] = {}
+        self._pool: ProcessPoolExecutor | None = None
+        # Set USE_PROCESS_WORKER=False (tests) to scan in-process
+        self._pool_failed = not use_process_worker
         psutil.cpu_percent(interval=None)  # prime the CPU counter
+        self._cpu_primed_at = time.monotonic()
 
     # ------------------------------------------------------------ metrics
     def collect(self) -> dict[str, Any]:
         with self._lock:
-            cpu = psutil.cpu_percent(interval=None)
+            # A sample taken right after priming covers a near-zero window and reads 0% or 100%;
+            # measure over a short blocking window instead.
+            if self._cpu_primed_at is not None and time.monotonic() - self._cpu_primed_at < 0.5:
+                cpu = psutil.cpu_percent(interval=0.5)
+            else:
+                cpu = psutil.cpu_percent(interval=None)
+            self._cpu_primed_at = None
             vm = psutil.virtual_memory()
             disk = psutil.disk_usage(system_disk_path())
             net = psutil.net_io_counters()
@@ -79,40 +96,38 @@ class SystemCollector:
             return 0
 
     # ------------------------------------------------------------ processes
+    PROCESS_CACHE_SECONDS = 5.0
+
     def processes(self, limit: int = 25, sort: str = "cpu") -> list[dict[str, Any]]:
-        """Top processes. Process objects are cached so cpu_percent reflects usage since last call."""
-        with self._lock:
-            out = []
-            current = set()
-            cpu_count = psutil.cpu_count() or 1
-            for p in psutil.process_iter(["pid", "name", "username", "status", "create_time", "memory_percent", "memory_info"]):
-                pid = p.info["pid"]
-                if pid == 0:  # 'System Idle Process' (Windows) / kernel swapper - not a real workload
-                    continue
-                current.add(pid)
-                cached = self._procs.setdefault(pid, p)
-                try:
-                    cpu = cached.cpu_percent(interval=None) / cpu_count
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                    continue
-                mi = p.info.get("memory_info")
-                out.append({
-                    "pid": pid,
-                    "name": p.info.get("name") or "?",
-                    "username": p.info.get("username") or "",
-                    "status": p.info.get("status") or "",
-                    "cpu_percent": round(cpu, 2),
-                    "memory_percent": round(p.info.get("memory_percent") or 0.0, 2),
-                    "memory_rss": int(mi.rss) if mi else 0,
-                    "started_at": datetime.fromtimestamp(p.info["create_time"], timezone.utc).isoformat()
-                    if p.info.get("create_time") else None,
-                })
-            for pid in list(self._procs):
-                if pid not in current:
-                    self._procs.pop(pid, None)
-        key = "memory_percent" if sort == "memory" else "cpu_percent"
-        out.sort(key=lambda x: x[key], reverse=True)
-        return out[:limit]
+        """Top processes by CPU or memory (scanned in a worker process, cached briefly)."""
+        key = (limit, sort)
+        with self._proc_lock:
+            hit = self._proc_cache.get(key)
+            if hit and time.monotonic() - hit[0] < self.PROCESS_CACHE_SECONDS:
+                return hit[1]
+            rows = self._scan(limit, sort)
+            self._proc_cache[key] = (time.monotonic(), rows)
+            return rows
+
+    def _scan(self, limit: int, sort: str) -> list[dict[str, Any]]:
+        if self._pool is None and not self._pool_failed:
+            try:
+                self._pool = ProcessPoolExecutor(max_workers=1)
+            except (OSError, RuntimeError, NotImplementedError):
+                self._pool_failed = True
+        if self._pool is not None:
+            try:
+                return self._pool.submit(procscan.top_processes, limit, sort).result(timeout=30)
+            except Exception:  # broken pool / unpicklable env -> fall back to in-process scan
+                log.warning("process scan worker failed; falling back to in-process scan", exc_info=True)
+                self._pool.shutdown(wait=False, cancel_futures=True)
+                self._pool, self._pool_failed = None, True
+        return procscan.top_processes(limit, sort)
+
+    def shutdown(self) -> None:
+        if self._pool is not None:
+            self._pool.shutdown(wait=False, cancel_futures=True)
+            self._pool = None
 
     @staticmethod
     def process_names() -> set[str]:
