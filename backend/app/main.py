@@ -13,7 +13,8 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import text
 
 from app.api.routes import (
-    analytics, auth, containers, dashboard, integrity, monitoring, reports, security, settings, users, vms, ws,
+    analytics, auth, containers, dashboard, integrity, monitoring, notifications, reports, security, settings, users, vms,
+    ws,
 )
 from app.core.config import get_settings
 from app.core.database import Base, SessionLocal, engine
@@ -104,7 +105,8 @@ async def unhandled_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
-for r in (auth, users, dashboard, monitoring, containers, vms, security, integrity, analytics, reports, settings, ws):
+for r in (auth, users, dashboard, monitoring, containers, vms, security, integrity, analytics, reports, settings,
+          notifications, ws):
     app.include_router(r.router)
 
 

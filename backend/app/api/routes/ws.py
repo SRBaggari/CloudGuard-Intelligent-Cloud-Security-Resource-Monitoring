@@ -39,3 +39,25 @@ async def ws_monitoring(ws: WebSocket):
 @router.websocket("/ws/alerts")
 async def ws_alerts(ws: WebSocket):
     await _serve(ws, "alerts")
+
+
+@router.websocket("/ws/notifications")
+async def ws_notifications(ws: WebSocket):
+    """Personal channel: only the signed-in user's notifications are delivered."""
+    token = ws.query_params.get("token", "")
+    with SessionLocal() as db:
+        try:
+            user = user_from_token(db, token)
+        except HTTPException:
+            await ws.close(code=4401, reason="Unauthorized")
+            return
+    await manager.connect_user(user.id, ws)
+    await ws.send_json({"type": "hello", "channel": "notifications", "user": user.username})
+    try:
+        while True:
+            if await ws.receive_text() == "ping":
+                await ws.send_json({"type": "pong"})
+    except WebSocketDisconnect:
+        pass
+    finally:
+        manager.disconnect_user(user.id, ws)
