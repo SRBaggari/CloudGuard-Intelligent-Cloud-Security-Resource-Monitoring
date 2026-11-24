@@ -1,7 +1,7 @@
 # CloudGuard — Database Design
 
 PostgreSQL is the primary database (SQLite is supported for local runs/tests). The schema is created
-and versioned with **Alembic** (`backend/alembic/versions/0001_initial_schema.py`). All tables with
+and versioned with **Alembic** (`backend/alembic/versions/0001`–`0007`). All tables with
 mutable rows have `created_at` / `updated_at` timestamps (UTC). Integrity is enforced with primary
 keys, foreign keys (with explicit `ON DELETE` behaviour), unique constraints, `CHECK` constraints on
 enumerations and indexes on every column used for filtering or time-range queries.
@@ -29,6 +29,14 @@ erDiagram
     SECURITY_EVENTS |o--o{ ALERTS : "evidence for"
     MONITORED_DIRECTORIES ||--o{ FILE_INTEGRITY_RECORDS : "baseline"
     MONITORED_DIRECTORIES ||--o{ FILE_INTEGRITY_CHANGES : "history"
+    USERS ||--o{ NOTIFICATIONS : "receives"
+    ALERTS |o--o{ NOTIFICATIONS : "notifies about"
+    INCIDENTS }o--o{ ALERTS : "groups (incident_alerts)"
+    INCIDENTS ||--o{ INCIDENT_EVENTS : "timeline"
+    INCIDENTS ||--o{ INCIDENT_ACTIONS : "response actions"
+    USERS |o--o{ INCIDENTS : "assigned to"
+    USERS |o--o{ COMPLIANCE_RUNS : "runs"
+    USERS |o--o{ COMPLIANCE_CHECKS : "assesses"
 
     ROLES {
         int id PK
@@ -211,6 +219,74 @@ erDiagram
         string key PK
         json value
     }
+    NOTIFICATIONS {
+        int id PK
+        int user_id FK
+        string category
+        string severity
+        string title
+        string dedupe_key "unique per user"
+        int alert_id FK
+        bool is_read
+        datetime read_at
+    }
+    INCIDENTS {
+        int id PK
+        string title
+        string severity
+        string status "detected|acknowledged|investigating|resolved"
+        int assignee_id FK
+        int created_by_id FK
+        datetime detected_at
+        datetime acknowledged_at
+        datetime investigation_started_at
+        datetime resolved_at
+        text root_cause
+        text resolution_summary
+        bool is_demo
+    }
+    INCIDENT_EVENTS {
+        int id PK
+        int incident_id FK
+        string event_type
+        text message
+        json details
+        int user_id FK
+        datetime created_at
+    }
+    INCIDENT_ACTIONS {
+        int id PK
+        int incident_id FK
+        string action_type
+        string target
+        string mode "executed|recorded"
+        string status "completed|failed|recorded"
+        text result
+        int performed_by_id FK
+    }
+    COMPLIANCE_CHECKS {
+        int id PK
+        string key UK
+        string title
+        string category
+        string severity
+        string check_type "automated|manual"
+        string reference
+        bool enabled
+        bool is_custom
+        string manual_status
+        string last_status
+        text last_evidence
+    }
+    COMPLIANCE_RUNS {
+        int id PK
+        float score
+        string grade
+        json counts
+        json results
+        int run_by_id FK
+        datetime created_at
+    }
 ```
 
 ## Tables
@@ -234,6 +310,17 @@ erDiagram
 | `activity_logs` | audit trail | index `(user_id, created_at)`, `action` |
 | `reports` | generated report metadata (files stored in `data/reports`) | FK `created_by_id` |
 | `system_settings` | runtime-tunable settings (intervals, ML) | key/value JSON |
+| `notifications` | per-user in-app notifications and read state | unique `(user_id, dedupe_key)` prevents duplicates; index `(user_id, is_read, created_at)`; cascades with user and alert |
+| `incidents` | security incidents and their lifecycle stage | `CHECK status`, `CHECK severity`; index `(status, severity)`; `is_demo` |
+| `incident_alerts` | many-to-many incident ↔ alert link | composite PK; cascades on either side |
+| `incident_events` | immutable incident timeline (status changes, notes, links, actions) | index `(incident_id, created_at)` |
+| `incident_actions` | executed or recorded response actions with result | `CHECK mode`, `CHECK status` |
+| `compliance_checks` | configurable security checklist (automated + manual/custom) | `key` unique; `CHECK severity`, `CHECK check_type` |
+| `compliance_runs` | posture score history with per-check results | index `created_at` |
+
+Columns added by migrations 0002–0007: `users.notification_min_severity`, `users.theme_preference`,
+`containers.networks`, and an indexed `is_demo` flag on `devices`, `virtual_machines`, `containers`,
+`security_events` and `alerts` that keeps demonstration data separate from real infrastructure data.
 
 ## Normalisation notes
 
