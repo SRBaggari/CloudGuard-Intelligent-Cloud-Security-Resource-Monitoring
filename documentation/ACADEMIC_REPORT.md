@@ -16,8 +16,11 @@ tampering. An unsupervised Isolation Forest model, trained on the host's own his
 detection with per-feature explanations. Alerts are de-duplicated, pushed to a React dashboard over
 WebSockets and managed through an acknowledge/resolve workflow; PDF and CSV reports summarise any
 period. The system is implemented with FastAPI, SQLAlchemy, PostgreSQL, React and TypeScript, is
-protected by JWT authentication, Argon2id hashing and role-based access control, and is verified by
-106 automated tests (80 backend, 16 component, 10 end-to-end).
+protected by JWT authentication, Argon2id hashing and role-based access control. Version 1.1 adds
+incident response management, an interactive infrastructure topology, CIS-inspired compliance
+checks with a posture score, per-user notifications, capacity planning and a separated
+demonstration mode. The system is verified by 181 automated tests (145 backend, 17 component,
+19 end-to-end).
 
 ## 1. Introduction
 
@@ -140,7 +143,32 @@ unit test exposed this. A transparent z-score guard therefore also flags samples
 is ≥ 4 σ (configurable) from its learned mean. Each anomaly is explained, e.g. *“CPU 46.6% is 3.2σ
 above normal (16.2%)”*. Two consecutive anomalous samples raise an alert.
 
-### 5.5 Frontend
+### 5.5 Enhancement modules (v1.1)
+
+* **Incident response.** Incidents aggregate alerts and follow the stages *detected →
+  acknowledged → investigating → resolved*, mirroring the detection/analysis, containment and
+  recovery phases of NIST SP 800-61. An append-only timeline records every status change, note,
+  linked alert and response action. Response actions reuse the authorised integration code (Docker,
+  VirtualBox, account controls, FIM) and are recorded with their outcome even when they fail.
+* **Notifications.** A per-user table with a unique `(user, dedupe_key)` constraint guarantees one
+  notification per alert; escalations re-surface it, repeated detections do not. Delivery uses a
+  personal WebSocket channel.
+* **Topology.** A graph derived from monitored resources; health is classified per node and active
+  alerts are counted by resource. Disconnected integrations contribute no nodes.
+* **Compliance.** 23 read-only automated checks and 4 organisational items, each with a reference
+  to the CIS control or benchmark that inspired it, evidence and remediation; the posture score is a
+  severity-weighted pass rate (warnings count half). The report states explicitly that this is not a
+  CIS certification.
+* **Capacity planning.** Ordinary least-squares trend over bucketed measured data with a ±1.96σ
+  residual band, R²-based confidence and days-to-threshold; every projected value is tagged as an
+  estimate. Tests verify the method on synthetic data with a known 1 %/day growth (estimated ETA
+  within ±1.5 days of the analytical value).
+* **Demonstration mode.** Sample infrastructure and scenarios are flagged `is_demo`; a context
+  variable makes the *same* detection code label its output as demo data. Tests prove the
+  separation (real views, syncs and actions never see demo rows) and that engine-backed scenarios
+  stop producing alerts when the corresponding rule is disabled — i.e. nothing is hard-coded.
+
+### 5.6 Frontend
 A React/TypeScript SPA with a navy dark theme (and light theme), sidebar navigation, live
 notification bell, lazy-loaded pages and consistent loading, empty, error and success states.
 Chart colours were validated for colour-vision-deficiency separation and contrast; charts always
@@ -156,14 +184,21 @@ subprocess calls; Docker socket never exposed; secrets only from the environment
 
 | Suite | Tool | Tests | Coverage of |
 |---|---|---|---|
-| Backend | Pytest | 80 | auth (hashing, login, lockout, refresh rotation & reuse, logout, profile), RBAC (12 admin-only endpoints, unauthenticated access, ownership), monitoring (real psutil values, worker-process scan, history, thresholds, dedupe, rule toggling), Docker & VM integration (mock adapters, validation, crash/restart/unhealthy detection, graceful degradation, command whitelist), alerts lifecycle & filters, WebSockets, FIM (baseline, all change types, unsafe paths, locked files), ML (insufficient data, training, explanation), reports (PDF/CSV, isolation), rate limiting, Prometheus |
-| Frontend | Vitest + Testing Library | 16 | formatting, form validation, UI components, API client (errors, token refresh, offline), routing guards, dashboard rendering from API data, admin gating, error/retry state |
-| End-to-end | Playwright (Chromium) | 10 | redirect to login, login/registration validation, live dashboard, navigation of every module, integration setup messages, **real file tampering → scan → alert → resolve**, PDF report download, theme toggle, logout |
+| Backend | Pytest | 145 | auth (hashing, login, lockout, refresh rotation & reuse, logout, profile), RBAC (12 admin-only endpoints, unauthenticated access, ownership), monitoring (real psutil values, worker-process scan, history, thresholds, dedupe, rule toggling), Docker & VM integration (mock adapters, validation, crash/restart/unhealthy detection, graceful degradation, command whitelist), alerts lifecycle & filters, WebSockets, FIM (baseline, all change types, unsafe paths, locked files), ML (insufficient data, training, explanation), reports (PDF/CSV, isolation), rate limiting, Prometheus |
+| Frontend | Vitest + Testing Library | 17 | formatting, form validation, UI components, API client (errors, token refresh, offline), routing guards, dashboard rendering from API data, admin gating, error/retry state |
+| End-to-end | Playwright (Chromium) | 19 | redirect to login, login/registration validation, live dashboard, navigation of every module, integration setup messages, **real file tampering → scan → alert → resolve**, PDF report download, theme toggle, logout |
 
-All 106 tests pass. The backend suite passes on both SQLite and **PostgreSQL 18**; Alembic
-migrations upgrade, downgrade and re-upgrade cleanly and `alembic check` reports no drift.
+All 181 tests pass. The v1.1 additions are covered by tests for notification de-duplication and
+ownership, the incident lifecycle and RBAC, executed response actions, topology health and RBAC,
+compliance scoring and manual assessments, capacity estimates, diagnostics and demo-data
+separation, plus E2E flows for each new screen. The backend suite passes on both SQLite and
+**PostgreSQL 18**; the seven Alembic migrations upgrade a populated database, downgrade and
+re-upgrade cleanly, and `alembic check` reports no drift.
 
-Defects found and fixed through testing: Isolation Forest extrapolation gap (§5.4); GIL convoy
+Defects found and fixed through testing (v1.1): boolean server defaults rendered as SQLite
+integers that PostgreSQL rejects; a NOT NULL column migration that would fail on existing rows;
+demo CPU samples skewing the forecast; a stale unread badge after marking notifications read;
+E2E races and the suite tripping CloudGuard's own login rate limit. Earlier defects: Isolation Forest extrapolation gap (§5.4); GIL convoy
 latency (§5.1); antivirus file locks in FIM (§5.3); stale titles on de-duplicated alerts; navigation
 landmark mislabelled for assistive technology; filter controls ignoring width; first-sample CPU
 artefact.
