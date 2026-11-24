@@ -1,6 +1,6 @@
-import { CheckCheck, CheckCircle2, Eye, Search, ShieldAlert, ShieldCheck, Wrench } from "lucide-react";
+import { CheckCheck, CheckCircle2, Eye, Search, ShieldAlert, ShieldCheck, Siren, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Badge, Button, Card, EmptyState, ErrorState, Input, Modal, PageHeader, Pagination, Select, SeverityBadge, Spinner, Table, statusTone, useToast,
 } from "@/components/ui";
@@ -8,7 +8,8 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime, timeAgo, titleCase } from "@/lib/format";
 import { useApi, useLiveChannel } from "@/lib/hooks";
-import type { Alert, Page, Severity } from "@/lib/types";
+import type { Alert, IncidentSummary, Page, Severity } from "@/lib/types";
+import { CreateIncidentModal } from "./Incidents";
 
 const CATEGORIES = ["authentication", "system", "network", "container", "virtualization", "integrity", "infrastructure", "anomaly"];
 
@@ -18,6 +19,8 @@ function AlertDetail({ id, onClose, onChanged }: { id: number; onClose: () => vo
   const { data: a, error, reload } = useApi<Alert>(`/api/security/alerts/${id}`);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const linked = useApi<Page<IncidentSummary>>("/api/incidents", { query: { alert_id: id, include_demo: true } });
 
   async function transition(action: "acknowledge" | "resolve") {
     setBusy(action);
@@ -68,6 +71,16 @@ function AlertDetail({ id, onClose, onChanged }: { id: number; onClose: () => vo
             </div>
           )}
           {a.resolution_note && <p className="text-sm text-ink-2"><span className="text-muted">Note:</span> {a.resolution_note}</p>}
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm">
+            <Siren className="size-4 text-muted" />
+            <span className="text-ink-2">Incidents:</span>
+            {linked.data?.items.length ? linked.data.items.map((i) => (
+              <Link key={i.id} to={`/incidents/${i.id}`} className="font-mono text-xs text-accent hover:underline">{i.reference} ({i.status})</Link>
+            )) : <span className="text-xs text-muted">not part of an incident</span>}
+            {isAdmin && (
+              <Button size="sm" variant="ghost" className="ml-auto" icon={<Siren className="size-3.5" />} onClick={() => setCreating(true)}>Create incident</Button>
+            )}
+          </div>
           {isAdmin && a.status !== "resolved" && (
             <div className="space-y-2 border-t border-line pt-4">
               <Input placeholder="Optional note (investigation findings, remediation taken…)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} aria-label="Note" />
@@ -80,6 +93,7 @@ function AlertDetail({ id, onClose, onChanged }: { id: number; onClose: () => vo
           {!isAdmin && a.status !== "resolved" && <p className="text-xs text-muted">Only administrators can acknowledge or resolve alerts.</p>}
         </div>
       )}
+      {a && <CreateIncidentModal open={creating} onClose={() => setCreating(false)} initialAlerts={[a]} />}
     </Modal>
   );
 }
