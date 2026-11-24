@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import {
   Activity, BarChart3, Bell, BellRing, Boxes, BrainCircuit, ChevronDown, FileBarChart, FileLock2, LayoutDashboard, LogOut,
-  Menu, Moon, ScrollText, Server, Settings, ShieldAlert, ShieldCheck, Siren, Sun, User as UserIcon, X,
+  Menu, Moon, ScrollText, Server, Settings, ShieldAlert, ShieldCheck, Siren, Sun, Workflow, User as UserIcon, X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -17,6 +17,7 @@ const NAV = [
   { section: "Overview", items: [
     { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
     { to: "/monitoring", label: "Infrastructure", icon: Activity },
+    { to: "/topology", label: "Topology", icon: Workflow },
   ]},
   { section: "Compute", items: [
     { to: "/containers", label: "Containers", icon: Boxes },

@@ -10,6 +10,7 @@ import RegisterPage from "@/pages/Register";
 
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Monitoring = lazy(() => import("@/pages/Monitoring"));
+const Topology = lazy(() => import("@/pages/Topology"));
 const Containers = lazy(() => import("@/pages/Containers"));
 const VirtualMachines = lazy(() => import("@/pages/VirtualMachines"));
 const Alerts = lazy(() => import("@/pages/Alerts"));
@@ -35,6 +36,7 @@ export function AppRoutes() {
           <Route element={<AppLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="monitoring" element={<Monitoring />} />
+            <Route path="topology" element={<Topology />} />
             <Route path="containers" element={<Containers />} />
             <Route path="vms" element={<VirtualMachines />} />
             <Route path="alerts" element={<Alerts />} />
