@@ -43,3 +43,10 @@ def integrations(_: User = Depends(get_current_user)):
         "database": "sqlite" if s.is_sqlite else "postgresql",
         "prometheus": s.prometheus_enabled,
     }
+
+
+@router.get("/diagnostics")
+def diagnostics(_: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """System health diagnostics: database, migrations, background loops, collector, storage, integrations."""
+    from app.services.diagnostics import run_diagnostics
+    return run_diagnostics(db)
