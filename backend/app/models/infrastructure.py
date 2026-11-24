@@ -57,6 +57,7 @@ class Container(TimestampMixin, Base):
     memory_usage: Mapped[int] = mapped_column(BigInteger, default=0)
     net_rx_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
     net_tx_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
+    networks: Mapped[list] = mapped_column(JSON, default=list)  # Docker network names
     device_id: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), index=True)
     owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
