@@ -75,7 +75,7 @@ test("navigation across all modules", async ({ page }) => {
     ["File Integrity", "File Integrity Monitoring", "09-integrity-empty"],
     ["Analytics & ML", "Analytics & Machine Learning", "10-analytics"],
     ["Reports", "Reports", "12-reports"],
-    ["Audit Log", "Audit Log", "13-audit-log"],
+    ["Audit Log", "Security Audit Log", "13-audit-log"],
     ["Settings", "Settings", "14-settings"],
   ];
   for (const [link, heading, file] of pages) {

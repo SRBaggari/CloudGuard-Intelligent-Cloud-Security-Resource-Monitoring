@@ -48,7 +48,7 @@ export default function Activity() {
   return (
     <div className="space-y-6">
       <PageHeader title="Security Audit Log"
-        description="Tamper-evident trail of authentication, administrative changes and resource actions, with user, source IP and timestamp."
+        description="Chronological record of authentication, administrative changes and resource actions, with user, source IP and timestamp."
         actions={<Button icon={<FileDown className="size-4" />} onClick={exportCsv}>Export CSV</Button>} />
       <Card>
         <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
