@@ -161,6 +161,7 @@ class RealDockerAdapter:
             "memory_limit": host.get("Memory"),
             "nano_cpus": host.get("NanoCpus"),
             "privileged": host.get("Privileged", False),
+            "user": cfg.get("User") or "",  # empty = image default (usually root)
         }
 
     def stats(self, ref: str) -> dict[str, Any]:
@@ -229,7 +230,8 @@ class MockDockerAdapter:
         c = self._find(ref)
         return {**c, "created": c["started_at"], "command": ["demo"], "entrypoint": None, "env_keys": ["PATH"],
                 "labels": {"cloudguard.demo": "true"}, "ports": {}, "mounts": [],
-                "restart_policy": {"Name": "no"}, "memory_limit": 0, "nano_cpus": 0, "privileged": False}
+                "restart_policy": {"Name": "no"}, "memory_limit": 0, "nano_cpus": 0, "privileged": False,
+                "user": "" if c["name"] == "demo-db" else "1000"}
 
     def stats(self, ref: str) -> dict[str, Any]:
         c = self._find(ref)
