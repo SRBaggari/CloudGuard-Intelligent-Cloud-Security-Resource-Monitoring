@@ -1,0 +1,84 @@
+# CloudGuard full stack: PostgreSQL + FastAPI backend + React frontend + Prometheus + Grafana.
+#
+#   cp .env.example .env        # then fill in POSTGRES_PASSWORD, JWT_SECRET_KEY, GRAFANA_ADMIN_PASSWORD
+#   docker compose up -d --build
+#
+#   CloudGuard  http://localhost:8080
+#   Grafana     http://localhost:3000   (admin / GRAFANA_ADMIN_PASSWORD)
+#   Prometheus  http://localhost:9090
+#
+# NOTE ON HOST METRICS: inside a container psutil reports what the container can see. `pid: host`
+# lets the backend see host processes on Linux. For complete host telemetry on Windows/macOS,
+# run the backend natively instead (README -> "Run locally").
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cloudguard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-cloudguard}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "cloudguard"]
+      interval: 10s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        DOCKER_GID: ${DOCKER_GID:-999}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-cloudguard}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-cloudguard}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env}
+      CORS_ORIGINS: http://localhost:8080
+      INTEGRATION_MODE: real
+      PROMETHEUS_TOKEN: ${PROMETHEUS_TOKEN:-}
+    pid: host
+    volumes:
+      - backend-data:/app/data
+      # Docker monitoring. The socket is used ONLY by the backend's whitelisted adapter
+      # (list/inspect/stats/logs/start/stop/restart) and is never exposed through the API.
+      # Remove this line to run without Docker integration.
+      - /var/run/docker.sock:/var/run/docker.sock
+    expose:
+      - "8000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on: [backend]
+    ports:
+      - "8080:80"
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    restart: unless-stopped
+    volumes:
+      - ./deployment/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana-oss:11.2.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./deployment/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deployment/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  backend-data:
