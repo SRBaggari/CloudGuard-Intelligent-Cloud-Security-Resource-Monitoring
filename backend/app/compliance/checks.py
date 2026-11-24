@@ -257,8 +257,7 @@ def mon_alert_backlog(db: Session) -> Result:
     cutoff = utcnow() - timedelta(hours=24)
     stmt = select(func.count(Alert.id)).where(Alert.status != "resolved", Alert.severity.in_(("critical", "high")),
                                               Alert.created_at < cutoff)
-    if hasattr(Alert, "is_demo"):
-        stmt = stmt.where(Alert.is_demo.is_(False))
+    stmt = stmt.where(Alert.is_demo.is_(False))
     n = db.scalar(stmt) or 0
     return ("pass", "No stale high-severity alerts.") if not n else ("fail", f"{n} high/critical alert(s) open for more than 24 h.")
 
@@ -323,9 +322,7 @@ def _running_details(db: Session) -> tuple[list[dict] | None, str]:
     st = adapter.status()
     if not st.get("available"):
         return None, "Docker Engine not connected."
-    stmt = select(Container).where(Container.status == "running")
-    if hasattr(Container, "is_demo"):
-        stmt = stmt.where(Container.is_demo.is_(False))
+    stmt = select(Container).where(Container.status == "running", Container.is_demo.is_(False))
     out = []
     for c in db.scalars(stmt.limit(100)).all():
         try:

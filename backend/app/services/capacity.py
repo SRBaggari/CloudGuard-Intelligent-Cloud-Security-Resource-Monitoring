@@ -140,15 +140,24 @@ def _summary(m: dict[str, Any], horizon: int) -> str:
     return f"No threshold crossing estimated within {horizon} days (trend {m['trend']['slope_per_day']:+.2f}{'%' if u == 'percent' else ' B/s'}/day)."
 
 
-def build_capacity_report(db: Session, user: User, lookback_days: int = 7, horizon_days: int = 30) -> dict[str, Any]:
-    dev = get_local_device(db)
+def build_capacity_report(db: Session, user: User, lookback_days: int = 7, horizon_days: int = 30,
+                          demo: bool = False) -> dict[str, Any]:
+    if demo:
+        from app.services.demo import get_demo_device
+        dev = get_demo_device(db)
+        if dev is None:
+            return {"status": "insufficient_data", "demo": True, "metrics": [], "containers": [],
+                    "message": "The demonstration environment has not been created yet.", "samples": 0, "span_hours": 0,
+                    "bucket_minutes": 0, "lookback_days": lookback_days, "horizon_days": horizon_days, "method": ""}
+    else:
+        dev = get_local_device(db)
     since = utcnow() - timedelta(days=lookback_days)
     rows = db.scalars(select(SystemMetric).where(SystemMetric.device_id == dev.id, SystemMetric.timestamp >= since)
                       .order_by(SystemMetric.timestamp)).all()
     span_hours = ((ensure_aware(rows[-1].timestamp) - ensure_aware(rows[0].timestamp)).total_seconds() / 3600) if len(rows) > 1 else 0.0
     bucket_minutes = 10 if span_hours < 12 else 60
     n_buckets = len({(ensure_aware(r.timestamp).replace(second=0, microsecond=0, minute=(ensure_aware(r.timestamp).minute // bucket_minutes) * bucket_minutes if bucket_minutes < 60 else 0)) for r in rows})
-    base = {"lookback_days": lookback_days, "horizon_days": horizon_days, "samples": len(rows),
+    base = {"demo": demo, "device": dev.name, "lookback_days": lookback_days, "horizon_days": horizon_days, "samples": len(rows),
             "span_hours": round(span_hours, 2), "bucket_minutes": bucket_minutes, "generated_at": utcnow().isoformat(),
             "method": "Ordinary least-squares linear trend on bucketed averages; band = ±1.96 × residual std. "
                       "Estimates assume the observed trend continues and are not measurements."}
@@ -172,9 +181,7 @@ def build_capacity_report(db: Session, user: User, lookback_days: int = 7, horiz
     rule = get_rule(db, "container_resource")
     cpu_l = float((rule.params or {}).get("cpu", 90)) if rule else 90.0
     mem_l = float((rule.params or {}).get("memory", 90)) if rule else 90.0
-    c_stmt = select(Container).where(Container.status == "running")
-    if hasattr(Container, "is_demo"):
-        c_stmt = c_stmt.where(Container.is_demo.is_(False))
+    c_stmt = select(Container).where(Container.status == "running", Container.is_demo.is_(demo))
     if not user.is_admin:
         c_stmt = c_stmt.where(Container.owner_id == user.id)
     containers = []

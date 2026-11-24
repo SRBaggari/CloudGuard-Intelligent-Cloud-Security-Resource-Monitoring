@@ -46,7 +46,7 @@ def _vm_health(v: VirtualMachine) -> str:
 def build_topology(db: Session, user: User, include_demo: bool = False) -> dict[str, Any]:
     demo = include_demo
     active_alerts = dict(db.execute(
-        select(Alert.resource_name, func.count(Alert.id)).where(Alert.status != "resolved", Alert.is_demo.is_(demo) if hasattr(Alert, "is_demo") else True)
+        select(Alert.resource_name, func.count(Alert.id)).where(Alert.status != "resolved", Alert.is_demo.is_(demo))
         .group_by(Alert.resource_name)).all())
     interval = int(settings_service.get_section(db, "monitoring")["interval_seconds"])
     nodes: list[dict[str, Any]] = []
@@ -60,9 +60,7 @@ def build_topology(db: Session, user: User, include_demo: bool = False) -> dict[
         nodes.append({"id": node_id, "type": kind, "label": label, "health": health, "alerts": n_alerts,
                       "details": details, "link": link})
 
-    dev_stmt = select(Device).order_by(Device.id)
-    if hasattr(Device, "is_demo"):
-        dev_stmt = dev_stmt.where(Device.is_demo.is_(demo))
+    dev_stmt = select(Device).where(Device.is_demo.is_(demo)).order_by(Device.id)
     devices = db.scalars(dev_stmt).all()
     host_id = None
     for d in devices:
@@ -83,9 +81,7 @@ def build_topology(db: Session, user: User, include_demo: bool = False) -> dict[
         }, alert_key=d.hostname, link="/monitoring")
 
     # ---- containers
-    c_stmt = select(Container).where(Container.status != "removed").order_by(Container.name)
-    if hasattr(Container, "is_demo"):
-        c_stmt = c_stmt.where(Container.is_demo.is_(demo))
+    c_stmt = select(Container).where(Container.status != "removed", Container.is_demo.is_(demo)).order_by(Container.name)
     if not user.is_admin:
         c_stmt = c_stmt.where(Container.owner_id == user.id)
     containers = db.scalars(c_stmt).all()
@@ -113,9 +109,7 @@ def build_topology(db: Session, user: User, include_demo: bool = False) -> dict[
                 {"containers": sum(net in (c.networks or []) for c in containers)}, alert_key=f"network:{net}")
 
     # ---- virtual machines
-    v_stmt = select(VirtualMachine).order_by(VirtualMachine.name)
-    if hasattr(VirtualMachine, "is_demo"):
-        v_stmt = v_stmt.where(VirtualMachine.is_demo.is_(demo))
+    v_stmt = select(VirtualMachine).where(VirtualMachine.is_demo.is_(demo)).order_by(VirtualMachine.name)
     if not user.is_admin:
         v_stmt = v_stmt.where(VirtualMachine.owner_id == user.id)
     vbox = {"available": True, "mode": "demo"} if demo else get_vbox_adapter().status()
