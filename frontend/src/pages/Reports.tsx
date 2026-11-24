@@ -5,14 +5,16 @@ import {
 } from "@/components/ui";
 import { api, ApiError, downloadFile } from "@/lib/api";
 import { formatBytes, formatDateTime, titleCase } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/hooks";
 import type { Page, Report } from "@/lib/types";
 
-const SECTIONS = [
+const SECTIONS: { id: string; label: string; admin?: boolean }[] = [
   { id: "health", label: "Infrastructure health" }, { id: "resources", label: "Resource utilisation" },
   { id: "incidents", label: "Security incident summary" }, { id: "containers", label: "Container activity" },
   { id: "vms", label: "Virtual machine status" }, { id: "anomalies", label: "Anomaly detection results" },
   { id: "alerts", label: "Alert history" },
+  { id: "posture", label: "Security posture (admin)", admin: true },
 ];
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
@@ -24,7 +26,8 @@ export default function Reports() {
   const [format, setFormat] = useState<"pdf" | "csv">("pdf");
   const [start, setStart] = useState(isoDate(new Date(today.getTime() - 7 * 86400000)));
   const [end, setEnd] = useState(isoDate(today));
-  const [sections, setSections] = useState<string[]>(SECTIONS.map((s) => s.id));
+  const { isAdmin } = useAuth();
+  const [sections, setSections] = useState<string[]>(SECTIONS.filter((s) => !s.admin).map((s) => s.id));
   const [error, setError] = useState("");
   const [generating, setGenerating] = useState(false);
   const [page, setPage] = useState(1);
@@ -73,7 +76,7 @@ export default function Reports() {
             <fieldset>
               <legend className="mb-2 text-xs font-medium text-ink-2">Sections</legend>
               <div className="space-y-1.5">
-                {SECTIONS.map((s) => (
+                {SECTIONS.filter((s) => isAdmin || !s.admin).map((s) => (
                   <label key={s.id} className="flex items-center gap-2 text-sm text-ink-2">
                     <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={sections.includes(s.id)}
                       onChange={(e) => setSections((cur) => (e.target.checked ? [...cur, s.id] : cur.filter((x) => x !== s.id)))} />
