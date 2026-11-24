@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import {
-  Activity, BarChart3, Bell, BellRing, ClipboardCheck, Boxes, BrainCircuit, ChevronDown, FileBarChart, FileLock2, LayoutDashboard, LogOut,
+  Activity, BarChart3, Bell, BellRing, ClipboardCheck, Boxes, BrainCircuit, ChevronDown, FileBarChart, FileLock2, Gauge, LayoutDashboard, LogOut,
   Menu, Moon, ScrollText, Server, Settings, ShieldAlert, ShieldCheck, Siren, Sun, Workflow, User as UserIcon, X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -18,6 +18,7 @@ const NAV = [
     { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
     { to: "/monitoring", label: "Infrastructure", icon: Activity },
     { to: "/topology", label: "Topology", icon: Workflow },
+    { to: "/capacity", label: "Capacity Planning", icon: Gauge },
   ]},
   { section: "Compute", items: [
     { to: "/containers", label: "Containers", icon: Boxes },
