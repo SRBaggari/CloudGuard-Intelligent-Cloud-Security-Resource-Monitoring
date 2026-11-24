@@ -33,7 +33,7 @@ def upgrade() -> None:
     sa.Column('resolved_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('root_cause', sa.Text(), nullable=False),
     sa.Column('resolution_summary', sa.Text(), nullable=False),
-    sa.Column('is_demo', sa.Boolean(), server_default=sa.text('0'), nullable=False),
+    sa.Column('is_demo', sa.Boolean(), server_default=sa.false(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.CheckConstraint("severity IN ('critical','high','medium','low')", name='ck_incident_severity'),

@@ -29,7 +29,7 @@ def upgrade() -> None:
     sa.Column('reference', sa.String(length=255), nullable=False),
     sa.Column('remediation', sa.Text(), nullable=False),
     sa.Column('enabled', sa.Boolean(), nullable=False),
-    sa.Column('is_custom', sa.Boolean(), server_default=sa.text('0'), nullable=False),
+    sa.Column('is_custom', sa.Boolean(), server_default=sa.false(), nullable=False),
     sa.Column('manual_status', sa.String(length=16), nullable=True),
     sa.Column('manual_evidence', sa.Text(), nullable=False),
     sa.Column('assessed_by_id', sa.Integer(), nullable=True),
