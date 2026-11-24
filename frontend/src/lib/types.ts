@@ -196,3 +196,23 @@ export interface LoginAttempt {
   reason: string;
   created_at: string;
 }
+
+export type NotificationSeverity = Severity | "info";
+
+export interface AppNotification {
+  id: number;
+  category: "alert" | "incident" | "system";
+  severity: NotificationSeverity;
+  title: string;
+  message: string;
+  link: string;
+  alert_id: number | null;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationPage extends Page<AppNotification> {
+  unread: number;
+}

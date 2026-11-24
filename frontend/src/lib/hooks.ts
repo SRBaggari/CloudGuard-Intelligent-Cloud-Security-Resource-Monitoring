@@ -40,7 +40,7 @@ export function useApi<T>(path: string | null, opts: { interval?: number; query?
 }
 
 /** Subscribe to a CloudGuard WebSocket channel with automatic reconnect. */
-export function useLiveChannel(channel: "monitoring" | "alerts", onMessage: (msg: any) => void) {
+export function useLiveChannel(channel: "monitoring" | "alerts" | "notifications", onMessage: (msg: any) => void) {
   const handler = useRef(onMessage);
   handler.current = onMessage;
   const [connected, setConnected] = useState(false);
