@@ -125,12 +125,13 @@ export default function Incidents() {
   const [q, setQ] = useState("");
   const [qd, setQd] = useState("");
   const [mine, setMine] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   useEffect(() => { const t = setTimeout(() => setQd(q), 300); return () => clearTimeout(t); }, [q]);
-  useEffect(() => setPage(1), [status, severity, qd, mine]);
+  useEffect(() => setPage(1), [status, severity, qd, mine, showDemo]);
   const { data, error, loading, reload } = useApi<Page<IncidentSummary>>("/api/incidents", {
-    query: { status, severity, q: qd, assigned_to_me: mine || undefined, page, page_size: 20 }, interval: 30000,
+    query: { status, severity, q: qd, assigned_to_me: mine || undefined, include_demo: showDemo || undefined, page, page_size: 20 }, interval: 30000,
   });
   const stats = useApi<{ by_status: Record<IncidentStatus, number>; mean_time_to_acknowledge_minutes: number | null; mean_time_to_resolve_minutes: number | null }>(
     "/api/incidents/stats", { interval: 30000 });
@@ -168,6 +169,9 @@ export default function Incidents() {
           </Select>
           <label className="flex items-center gap-2 text-sm text-ink-2">
             <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={mine} onChange={(e) => setMine(e.target.checked)} /> Assigned to me
+          </label>
+          <label className="flex items-center gap-2 text-sm text-ink-2">
+            <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={showDemo} onChange={(e) => setShowDemo(e.target.checked)} /> Show demonstration data
           </label>
         </div>
         {error ? <ErrorState message={error.message} onRetry={reload} /> : loading && !data ? <Spinner /> : !data?.items.length ? (
