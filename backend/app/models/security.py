@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -54,6 +55,7 @@ class SecurityEvent(Base):
     details: Mapped[dict] = mapped_column(JSON, default=dict)
     rule_id: Mapped[int | None] = mapped_column(ForeignKey("detection_rules.id", ondelete="SET NULL"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
 
 
 class Alert(TimestampMixin, Base):
@@ -84,6 +86,7 @@ class Alert(TimestampMixin, Base):
     resolved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     resolution_note: Mapped[str] = mapped_column(Text, default="")
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
 
     rule: Mapped[DetectionRule | None] = relationship(lazy="joined")
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, BigInteger, DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, TimestampMixin, utcnow
@@ -21,6 +21,7 @@ class Device(TimestampMixin, Base):
     ip_address: Mapped[str] = mapped_column(String(64), default="")
     status: Mapped[str] = mapped_column(String(32), default="online", index=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
 
     metrics: Mapped[list[SystemMetric]] = relationship(back_populates="device", cascade="all, delete-orphan", passive_deletes=True)
 
@@ -39,6 +40,7 @@ class VirtualMachine(TimestampMixin, Base):
     device_id: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), index=True)
     owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
 
 
 class Container(TimestampMixin, Base):
@@ -63,6 +65,7 @@ class Container(TimestampMixin, Base):
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Set when CloudGuard itself stops a container, so it is not flagged as unexpected
     expected_stop_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
 
 
 class SystemMetric(Base):
