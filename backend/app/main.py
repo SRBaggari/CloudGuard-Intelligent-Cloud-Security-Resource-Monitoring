@@ -68,7 +68,7 @@ app = FastAPI(
     title="CloudGuard API",
     description="Intelligent Cloud Security & Resource Monitoring System. Authenticate via **/api/auth/login** and "
                 "use the access token as a Bearer token.",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 

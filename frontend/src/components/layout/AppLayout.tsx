@@ -112,7 +112,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         </nav>
         <div className="border-t border-line p-3 text-[11px] text-muted">
           <div className="flex items-center gap-2 px-2">
-            <BarChart3 className="size-3.5" /> v1.0 · local infrastructure
+            <BarChart3 className="size-3.5" /> v1.1 · local infrastructure
           </div>
         </div>
       </aside>
