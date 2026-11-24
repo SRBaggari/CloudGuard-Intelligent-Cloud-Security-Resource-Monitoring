@@ -20,7 +20,7 @@ def _get_row(db: Session, vm_id: str, user: User) -> VirtualMachine:
         vm_uuid = validate_uuid(vm_id)
     except ValueError as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e))
-    row = db.scalar(select(VirtualMachine).where(VirtualMachine.uuid == vm_uuid))
+    row = db.scalar(select(VirtualMachine).where(VirtualMachine.uuid == vm_uuid, VirtualMachine.is_demo.is_(False)))
     if row is None or not can_manage(user, row.owner_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Virtual machine not found")
     return row
@@ -31,7 +31,7 @@ def list_vms(refresh: bool = False, user: User = Depends(get_current_user), db: 
     st = get_vbox_adapter().status()
     if refresh and st.get("available"):
         sync_vms(db)
-    stmt = select(VirtualMachine).order_by(VirtualMachine.name)
+    stmt = select(VirtualMachine).where(VirtualMachine.is_demo.is_(False)).order_by(VirtualMachine.name)
     if not user.is_admin:
         stmt = stmt.where(VirtualMachine.owner_id == user.id)
     # Only report VMs as monitored when VirtualBox is actually connected

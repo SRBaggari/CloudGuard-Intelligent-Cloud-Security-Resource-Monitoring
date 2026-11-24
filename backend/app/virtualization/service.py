@@ -34,7 +34,7 @@ def sync_vms(db: Session) -> dict:
         return {"available": False, "message": str(e), "synced": 0}
     now = utcnow()
     for v in vms:
-        row = db.scalar(select(VirtualMachine).where(VirtualMachine.uuid == v["uuid"]))
+        row = db.scalar(select(VirtualMachine).where(VirtualMachine.uuid == v["uuid"], VirtualMachine.is_demo.is_(False)))
         prev = None
         if row is None:
             row = VirtualMachine(uuid=v["uuid"], name=v["name"])

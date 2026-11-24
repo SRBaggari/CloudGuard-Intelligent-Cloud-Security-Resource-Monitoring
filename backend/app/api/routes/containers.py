@@ -29,7 +29,8 @@ def _get_row(db: Session, ref: str, user: User) -> Container:
     conds = [Container.container_id == ref, Container.name == ref]
     if len(ref) >= 12:
         conds.append(Container.container_id.startswith(ref))
-    row = db.scalar(select(Container).where(or_(*conds)))
+    # demonstration containers are not real and can never be acted on through Docker
+    row = db.scalar(select(Container).where(or_(*conds), Container.is_demo.is_(False)))
     if row is None or not can_manage(user, row.owner_id):
         # do not reveal existence of resources the user is not authorised for
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Container not found")
@@ -45,7 +46,7 @@ def list_containers(
     st = adapter.status()
     if refresh and st.get("available"):
         sync_containers(db)
-    stmt = _visible(select(Container), user).order_by(Container.name)
+    stmt = _visible(select(Container).where(Container.is_demo.is_(False)), user).order_by(Container.name)
     if state:
         stmt = stmt.where(Container.status == state)
     rows = db.scalars(stmt).all()
