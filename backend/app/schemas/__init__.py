@@ -382,3 +382,97 @@ class NotificationPage(Page[NotificationOut]):
 
 class NotificationPreferences(BaseModel):
     min_severity: Severity
+
+
+# ---------------------------------------------------------------- incidents
+IncidentStatus = Literal["detected", "acknowledged", "investigating", "resolved"]
+ActionType = Literal[
+    "container_stop", "container_restart", "vm_stop", "user_disable", "user_revoke_sessions",
+    "user_unlock", "fim_rebaseline", "manual",
+]
+
+
+class IncidentCreate(BaseModel):
+    title: str = Field(min_length=3, max_length=255)
+    description: str = Field(default="", max_length=10000)
+    severity: Severity | None = None  # defaults to the highest severity of the linked alerts
+    category: str = Field(default="general", max_length=32)
+    alert_ids: list[int] = Field(default_factory=list, max_length=200)
+    assignee_id: int | None = None
+
+
+class IncidentUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=3, max_length=255)
+    description: str | None = Field(default=None, max_length=10000)
+    severity: Severity | None = None
+    assignee_id: int | None = None
+    unassign: bool = False
+    root_cause: str | None = Field(default=None, max_length=10000)
+
+
+class IncidentStatusChange(BaseModel):
+    status: IncidentStatus
+    note: str = Field(default="", max_length=5000)
+    resolution_summary: str = Field(default="", max_length=10000)
+
+
+class IncidentNote(BaseModel):
+    message: str = Field(min_length=1, max_length=10000)
+
+
+class IncidentLinkAlerts(BaseModel):
+    alert_ids: list[int] = Field(min_length=1, max_length=200)
+
+
+class IncidentActionRequest(BaseModel):
+    action_type: ActionType
+    target: str = Field(default="", max_length=255)
+    description: str = Field(default="", max_length=5000)  # required for manual actions
+    force: bool = False
+
+
+class IncidentEventOut(ORM):
+    id: int
+    event_type: str
+    message: str
+    details: dict[str, Any]
+    user_id: int | None
+    created_at: DT
+
+
+class IncidentActionOut(ORM):
+    id: int
+    action_type: str
+    target: str
+    mode: str
+    status: str
+    result: str
+    performed_by_id: int | None
+    created_at: DT
+
+
+class IncidentSummaryOut(ORM):
+    id: int
+    reference: str
+    title: str
+    severity: str
+    status: str
+    category: str
+    assignee_id: int | None
+    created_by_id: int | None
+    detected_at: DT
+    acknowledged_at: DT | None
+    investigation_started_at: DT | None
+    resolved_at: DT | None
+    is_demo: bool
+    created_at: DT
+    updated_at: DT
+
+
+class IncidentOut(IncidentSummaryOut):
+    description: str
+    root_cause: str
+    resolution_summary: str
+    alerts: list[AlertOut]
+    timeline: list[IncidentEventOut]
+    actions: list[IncidentActionOut]
