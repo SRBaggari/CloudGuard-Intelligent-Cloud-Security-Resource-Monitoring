@@ -20,6 +20,7 @@ const Reports = lazy(() => import("@/pages/Reports"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
 const Activity = lazy(() => import("@/pages/Activity"));
 const Profile = lazy(() => import("@/pages/Profile"));
+const Notifications = lazy(() => import("@/pages/Notifications"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 export function AppRoutes() {
@@ -39,6 +40,7 @@ export function AppRoutes() {
             <Route path="analytics" element={<Analytics />} />
             <Route path="reports" element={<Reports />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="notifications" element={<Notifications />} />
             <Route element={<AdminRoute />}>
               <Route path="integrity" element={<Integrity />} />
               <Route path="settings" element={<SettingsPage />} />

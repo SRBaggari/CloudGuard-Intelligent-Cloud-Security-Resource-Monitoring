@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import {
-  Activity, BarChart3, Bell, Boxes, BrainCircuit, ChevronDown, FileBarChart, FileLock2, LayoutDashboard, LogOut,
+  Activity, BarChart3, Bell, BellRing, Boxes, BrainCircuit, ChevronDown, FileBarChart, FileLock2, LayoutDashboard, LogOut,
   Menu, Moon, ScrollText, Server, Settings, ShieldAlert, ShieldCheck, Sun, User as UserIcon, X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -24,6 +24,7 @@ const NAV = [
   ]},
   { section: "Security", items: [
     { to: "/alerts", label: "Alert Center", icon: ShieldAlert },
+    { to: "/notifications", label: "Notifications", icon: BellRing },
     { to: "/security", label: "Detection & Events", icon: ShieldCheck },
     { to: "/integrity", label: "File Integrity", icon: FileLock2, admin: true },
     { to: "/analytics", label: "Analytics & ML", icon: BrainCircuit },
