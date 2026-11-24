@@ -78,7 +78,9 @@ def main() -> None:
     lines += [
         "## WebSockets", "", "| Path | Access | Messages |", "|---|---|---|",
         "| `/ws/monitoring?token=…` | 👤 user | `{type: \"metric\", device_id, metric}` each collection interval; `{type: \"containers.synced\"}` |",
-        "| `/ws/alerts?token=…` | 👤 user | `{type: \"alert.created\" \\| \"alert.updated\", alert}` |", "",
+        "| `/ws/alerts?token=…` | 👤 user | `{type: \"alert.created\" \\| \"alert.updated\", alert}` |",
+        "| `/ws/notifications?token=…` | 👤 user (own only) | `{type: \"notification.created\" \\| \"notification.updated\", notification}` |",
+        "",
         "Send the text `ping` to receive `{type: \"pong\"}`.", "",
         "## Prometheus", "",
         "`GET /metrics` exposes `cloudguard_host_cpu_percent`, `_memory_percent`, `_disk_percent`, "
