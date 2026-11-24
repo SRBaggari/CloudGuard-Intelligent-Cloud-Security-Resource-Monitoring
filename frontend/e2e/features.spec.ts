@@ -89,3 +89,33 @@ test("topology map renders real resources and shows node details", async ({ page
   await page.waitForTimeout(400);
   await shot(page, "19-topology");
 });
+
+test("compliance: run checklist, assess a manual item, see posture score", async ({ page }) => {
+  await login(page);
+  await page.goto("/compliance");
+  await expect(page.getByRole("heading", { name: "Security Audit & Compliance" })).toBeVisible();
+  await expect(page.getByText("CIS-inspired, not a certification")).toBeVisible();
+  await page.getByRole("button", { name: "Run checks now" }).click();
+  await expect(page.getByText(/Posture score \d/)).toBeVisible();
+  const item = page.getByRole("listitem").filter({ hasText: "Incident response contacts documented" });
+  await item.getByRole("button", { name: "Assess" }).click();
+  await page.getByRole("dialog").getByLabel("Result").selectOption("pass");
+  await page.getByLabel("Evidence", { exact: true }).fill("Contact list stored in the project wiki, reviewed by the team lead");
+  await page.getByRole("button", { name: "Save assessment" }).click();
+  await expect(page.getByText("Assessment recorded")).toBeVisible();
+  await expect(item.getByText("Contact list stored in the project wiki")).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(5500); // let toasts disappear
+  await shot(page, "20-compliance");
+});
+
+test("audit log filters and exports CSV", async ({ page }) => {
+  await login(page);
+  await page.goto("/activity");
+  await expect(page.getByRole("heading", { name: "Security Audit Log" })).toBeVisible();
+  await page.getByRole("combobox", { name: "Action category" }).selectOption("auth.");
+  await expect(page.getByRole("cell", { name: "auth.login" }).first()).toBeVisible();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export CSV" }).click();
+  expect((await download).suggestedFilename()).toBe("cloudguard-audit-log.csv");
+});
