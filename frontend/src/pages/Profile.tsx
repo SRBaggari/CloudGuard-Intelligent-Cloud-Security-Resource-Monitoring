@@ -1,14 +1,16 @@
 import { KeyRound, UserCog } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { Badge, Button, Card, CardHeader, Field, Input, PageHeader, Pagination, Spinner, Table, useToast } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, Field, Input, PageHeader, Pagination, Select, Spinner, Table, useToast } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime, titleCase } from "@/lib/format";
 import { useApi } from "@/lib/hooks";
+import { useTheme, type ThemePreference } from "@/lib/theme";
 import type { LoginAttempt, Page } from "@/lib/types";
 
 export default function Profile() {
   const { user, refreshUser } = useAuth();
+  const { preference, setPreference } = useTheme();
   const toast = useToast();
   const [fullName, setFullName] = useState(user?.full_name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
@@ -62,6 +64,21 @@ export default function Profile() {
             <Field label="Full name" htmlFor="p-name"><Input id="p-name" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={128} /></Field>
             <Field label="Email" htmlFor="p-email"><Input id="p-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
             <Field label="Username" htmlFor="p-user" hint="Usernames cannot be changed"><Input id="p-user" value={user.username} disabled /></Field>
+            <Field label="Appearance" htmlFor="p-theme" hint="Saved to your profile and applied on every device you sign in from">
+              <Select id="p-theme" value={preference} onChange={async (e) => {
+                const v = e.target.value as ThemePreference;
+                setPreference(v);
+                try {
+                  await api("/api/auth/me", { method: "PATCH", body: { theme_preference: v } });
+                  await refreshUser();
+                  toast({ tone: "good", title: "Appearance saved" });
+                } catch (err) {
+                  toast({ tone: "critical", title: "Could not save appearance", message: (err as Error).message });
+                }
+              }}>
+                <option value="dark">Dark</option><option value="light">Light</option><option value="system">Match system setting</option>
+              </Select>
+            </Field>
             <div className="flex justify-end"><Button type="submit" variant="primary" loading={saving}>Save profile</Button></div>
           </form>
         </Card>
