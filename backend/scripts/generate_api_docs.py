@@ -18,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fastapi.routing import APIRoute  # noqa: E402
 
 from app.api.routes import (  # noqa: E402
-    analytics, auth, containers, dashboard, integrity, monitoring, reports, security, settings, users, vms,
+    analytics, auth, capacity, compliance, containers, dashboard, demo, incidents, integrity, monitoring, notifications,
+    reports, security, settings, topology, users, vms,
 )
 from app.main import app  # noqa: E402
 
@@ -33,7 +34,8 @@ def _dep_names(dependant):
 
 def access_map() -> dict[tuple[str, str], str]:
     out = {}
-    for module in (auth, users, dashboard, monitoring, containers, vms, security, integrity, analytics, reports, settings):
+    for module in (auth, users, dashboard, monitoring, containers, vms, security, integrity, analytics, reports, settings,
+                   notifications, incidents, topology, compliance, capacity, demo):
         for r in module.router.routes:
             if not isinstance(r, APIRoute):
                 continue
