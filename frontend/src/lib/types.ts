@@ -216,3 +216,52 @@ export interface AppNotification {
 export interface NotificationPage extends Page<AppNotification> {
   unread: number;
 }
+
+export type IncidentStatus = "detected" | "acknowledged" | "investigating" | "resolved";
+
+export interface IncidentSummary {
+  id: number;
+  reference: string;
+  title: string;
+  severity: Severity;
+  status: IncidentStatus;
+  category: string;
+  assignee_id: number | null;
+  created_by_id: number | null;
+  detected_at: string;
+  acknowledged_at: string | null;
+  investigation_started_at: string | null;
+  resolved_at: string | null;
+  is_demo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IncidentEvent {
+  id: number;
+  event_type: string;
+  message: string;
+  details: Record<string, unknown>;
+  user_id: number | null;
+  created_at: string;
+}
+
+export interface IncidentAction {
+  id: number;
+  action_type: string;
+  target: string;
+  mode: "executed" | "recorded";
+  status: "completed" | "failed" | "recorded";
+  result: string;
+  performed_by_id: number | null;
+  created_at: string;
+}
+
+export interface Incident extends IncidentSummary {
+  description: string;
+  root_cause: string;
+  resolution_summary: string;
+  alerts: Alert[];
+  timeline: IncidentEvent[];
+  actions: IncidentAction[];
+}
