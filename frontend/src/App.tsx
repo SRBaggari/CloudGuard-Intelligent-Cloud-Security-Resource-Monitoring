@@ -20,6 +20,7 @@ const Analytics = lazy(() => import("@/pages/Analytics"));
 const Reports = lazy(() => import("@/pages/Reports"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
 const Activity = lazy(() => import("@/pages/Activity"));
+const Compliance = lazy(() => import("@/pages/Compliance"));
 const Profile = lazy(() => import("@/pages/Profile"));
 const Notifications = lazy(() => import("@/pages/Notifications"));
 const Incidents = lazy(() => import("@/pages/Incidents"));
@@ -51,6 +52,7 @@ export function AppRoutes() {
               <Route path="integrity" element={<Integrity />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="activity" element={<Activity />} />
+              <Route path="compliance" element={<Compliance />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Route>
