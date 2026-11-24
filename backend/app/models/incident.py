@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
-    JSON, Boolean, CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, String, Table, Text,
+    JSON, Boolean, CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, String, Table, Text, false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -43,7 +43,7 @@ class Incident(TimestampMixin, Base):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     root_cause: Mapped[str] = mapped_column(Text, default="")
     resolution_summary: Mapped[str] = mapped_column(Text, default="")
-    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False, index=True)
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
 
     alerts: Mapped[list[Alert]] = relationship(secondary=incident_alerts, lazy="selectin")
     timeline: Mapped[list[IncidentEvent]] = relationship(
