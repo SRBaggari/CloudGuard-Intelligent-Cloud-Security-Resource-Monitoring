@@ -90,7 +90,7 @@ export default function DemoCenter() {
             <CardHeader title="Scenarios" subtitle="Trigger a scenario, then follow the alert or incident through the normal workflow" icon={<Play className="size-4" />} />
             <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
               {s.scenarios.map((sc) => (
-                <div key={sc.key} className="flex flex-col rounded-xl border border-line bg-surface-2 p-4">
+                <div key={sc.key} role="group" aria-label={sc.title} className="flex flex-col rounded-xl border border-line bg-surface-2 p-4">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold text-ink">{sc.title}</p>
                     <Badge tone={sc.uses_real_rule_engine ? "good" : "neutral"}>{sc.uses_real_rule_engine ? "Real rule engine" : "Sample event"}</Badge>
