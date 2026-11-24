@@ -65,7 +65,7 @@ def notify_alert(db: Session, alert: Alert, *, is_new: bool, escalated: bool) ->
     for u in users:
         if RANK[alert.severity] < RANK.get(u.notification_min_severity, 0):
             continue
-        prefix = "Escalated: " if escalated and not is_new else ""
+        prefix = ("[DEMO] " if alert.is_demo else "") + ("Escalated: " if escalated and not is_new else "")
         n = notify_user(
             db, u.id, category="alert", severity=alert.severity, title=f"{prefix}{alert.title}",
             message=alert.description[:500], link=f"/alerts?id={alert.id}", dedupe_key=f"alert:{alert.id}",

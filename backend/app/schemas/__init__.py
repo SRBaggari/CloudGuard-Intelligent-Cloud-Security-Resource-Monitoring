@@ -218,6 +218,7 @@ class EventOut(ORM):
     resource: str
     details: dict[str, Any]
     rule_id: int | None
+    is_demo: bool = False
     created_at: DT
 
 
@@ -240,6 +241,7 @@ class AlertOut(ORM):
     resolved_by_id: int | None
     resolved_at: DT | None
     resolution_note: str
+    is_demo: bool = False
     created_at: DT
 
 

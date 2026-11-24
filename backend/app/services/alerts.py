@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import timedelta
 from typing import Any
 
@@ -17,6 +19,23 @@ log = logging.getLogger("cloudguard.alerts")
 
 SEVERITY_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
+# When set, everything the detection pipeline records is flagged as demonstration data.
+_demo_mode: ContextVar[bool] = ContextVar("cloudguard_demo_mode", default=False)
+
+
+@contextmanager
+def demo_scope():
+    """Run detection code so that its events and alerts are recorded as labelled demo data."""
+    token = _demo_mode.set(True)
+    try:
+        yield
+    finally:
+        _demo_mode.reset(token)
+
+
+def in_demo() -> bool:
+    return _demo_mode.get()
+
 
 def get_rule(db: Session, key: str) -> DetectionRule | None:
     return db.scalar(select(DetectionRule).where(DetectionRule.key == key))
@@ -30,6 +49,7 @@ def record_event(
     ev = SecurityEvent(
         event_type=event_type, category=category, severity=severity, message=message,
         resource=resource, details=details or {}, rule_id=rule.id if rule else None, source=source,
+        is_demo=in_demo(),
     )
     db.add(ev)
     db.flush()
@@ -43,7 +63,7 @@ def raise_alert(
 ) -> Alert:
     """Create an alert, or bump an existing open/acknowledged alert with the same fingerprint."""
     severity = severity or rule.severity
-    fingerprint = f"{rule.key}:{resource_type}:{dedupe_key or resource_name}"[:255]
+    fingerprint = (("demo:" if in_demo() else "") + f"{rule.key}:{resource_type}:{dedupe_key or resource_name}")[:255]
     existing = db.scalar(
         select(Alert).where(Alert.fingerprint == fingerprint, Alert.status != "resolved").order_by(Alert.id.desc())
     )
@@ -65,7 +85,7 @@ def raise_alert(
             title=title, description=description, severity=severity, category=rule.category,
             resource_type=resource_type, resource_name=resource_name, fingerprint=fingerprint,
             recommended_action=rule.recommended_response, details=details or {}, rule_id=rule.id,
-            event_id=event.id if event else None, last_seen_at=now,
+            event_id=event.id if event else None, last_seen_at=now, is_demo=in_demo(),
         )
         db.add(alert)
         is_new = True
