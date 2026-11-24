@@ -30,9 +30,10 @@ def test_run_evaluates_real_state_and_scores(client, admin, db):
     assert r.status_code == 201
     run = r.json()
     by_key = {x["key"]: x for x in run["results"]}
-    # test environment facts: JWT secret set via env (>=32 chars), SQLite, APP_ENV=test, mock Docker
+    # test environment facts: JWT secret set via env (>=32 chars), APP_ENV=test, mock Docker
     assert by_key["app_jwt_secret"]["status"] == "pass"
-    assert by_key["app_database_server"]["status"] == "warning"
+    expected_db = "warning" if db.get_bind().dialect.name == "sqlite" else "pass"
+    assert by_key["app_database_server"]["status"] == expected_db
     assert by_key["app_production_mode"]["status"] == "warning"
     assert by_key["id_password_hashing"]["status"] == "pass" and "Argon2id" in by_key["id_password_hashing"]["evidence"]
     assert by_key["id_admin_accounts"]["status"] == "pass"
