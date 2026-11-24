@@ -20,6 +20,42 @@ RUNNING = {"running"}
 STOPPED = {"exited", "dead"}
 
 
+def evaluate_container_transition(db: Session, row: Container, prev_status: str | None, prev_restarts: int | None,
+                                  prev_health: str | None, now) -> None:
+    """Apply the container detection rules to an observed state change of `row`."""
+    name = row.name
+    if prev_status in RUNNING and row.status in STOPPED:
+        expected = ensure_aware(row.expected_stop_at)
+        if expected and now - expected < timedelta(minutes=5):
+            row.expected_stop_at = None
+            db.commit()
+        else:
+            detect(db, "container_unexpected_exit", title=f"Container '{name}' stopped unexpectedly",
+                   description=f"Container '{name}' ({row.image}) changed from running to {row.status} "
+                               f"(exit code {row.exit_code}) without a CloudGuard stop action.",
+                   resource_type="container", resource_name=name, details={"exit_code": row.exit_code})
+            engine.register_failure(db, "container", name, f"exited with code {row.exit_code}")
+    if row.health == "unhealthy" and prev_health != "unhealthy":
+        detect(db, "container_unhealthy", title=f"Container '{name}' is unhealthy",
+               description=f"Docker health check reports '{name}' as unhealthy.",
+               resource_type="container", resource_name=name)
+    if prev_restarts is not None and row.restart_count > prev_restarts:
+        detect(db, "container_restart", title=f"Container '{name}' restarted",
+               description=f"Restart count of '{name}' increased from {prev_restarts} to {row.restart_count}.",
+               resource_type="container", resource_name=name, details={"restart_count": row.restart_count})
+        engine.register_failure(db, "container", name, "restarted by Docker")
+    res_rule = get_rule(db, "container_resource")
+    if res_rule and res_rule.enabled and row.status == "running":
+        cpu_l = float(res_rule.params.get("cpu", 90))
+        mem_l = float(res_rule.params.get("memory", 90))
+        if row.cpu_percent >= cpu_l or row.memory_percent >= mem_l:
+            detect(db, "container_resource", title=f"High resource usage in container '{name}'",
+                   description=f"Container '{name}' CPU {row.cpu_percent:.1f}% / memory {row.memory_percent:.1f}% "
+                               f"(limits {cpu_l:.0f}% / {mem_l:.0f}%).",
+                   resource_type="container", resource_name=name,
+                   details={"cpu": row.cpu_percent, "memory": row.memory_percent})
+
+
 def sync_containers(db: Session, with_stats: bool = True) -> dict:
     adapter = get_docker_adapter()
     try:
@@ -29,7 +65,6 @@ def sync_containers(db: Session, with_stats: bool = True) -> dict:
 
     seen = set()
     now = utcnow()
-    res_rule = get_rule(db, "container_resource")
     for it in items:
         seen.add(it["id"])
         row = db.scalar(select(Container).where(Container.container_id == it["id"]))
@@ -62,41 +97,10 @@ def sync_containers(db: Session, with_stats: bool = True) -> dict:
             row.memory_usage = 0
         db.commit()
 
-        name = row.name
-        # --- detection on state transitions
-        if prev_status in RUNNING and row.status in STOPPED:
-            expected = ensure_aware(row.expected_stop_at)
-            if expected and now - expected < timedelta(minutes=5):
-                row.expected_stop_at = None
-                db.commit()
-            else:
-                detect(db, "container_unexpected_exit", title=f"Container '{name}' stopped unexpectedly",
-                       description=f"Container '{name}' ({row.image}) changed from running to {row.status} "
-                                   f"(exit code {row.exit_code}) without a CloudGuard stop action.",
-                       resource_type="container", resource_name=name, details={"exit_code": row.exit_code})
-                engine.register_failure(db, "container", name, f"exited with code {row.exit_code}")
-        if row.health == "unhealthy" and prev_health != "unhealthy":
-            detect(db, "container_unhealthy", title=f"Container '{name}' is unhealthy",
-                   description=f"Docker health check reports '{name}' as unhealthy.",
-                   resource_type="container", resource_name=name)
-        if prev_restarts is not None and row.restart_count > prev_restarts:
-            detect(db, "container_restart", title=f"Container '{name}' restarted",
-                   description=f"Restart count of '{name}' increased from {prev_restarts} to {row.restart_count}.",
-                   resource_type="container", resource_name=name,
-                   details={"restart_count": row.restart_count})
-            engine.register_failure(db, "container", name, "restarted by Docker")
-        if res_rule and res_rule.enabled and row.status == "running":
-            cpu_l = float(res_rule.params.get("cpu", 90))
-            mem_l = float(res_rule.params.get("memory", 90))
-            if row.cpu_percent >= cpu_l or row.memory_percent >= mem_l:
-                detect(db, "container_resource", title=f"High resource usage in container '{name}'",
-                       description=f"Container '{name}' CPU {row.cpu_percent:.1f}% / memory {row.memory_percent:.1f}% "
-                                   f"(limits {cpu_l:.0f}% / {mem_l:.0f}%).",
-                       resource_type="container", resource_name=name,
-                       details={"cpu": row.cpu_percent, "memory": row.memory_percent})
+        evaluate_container_transition(db, row, prev_status, prev_restarts, prev_health, now)
 
-    # Containers removed from Docker
-    for row in db.scalars(select(Container)).all():
+    # Containers removed from Docker (demonstration rows are never touched by a real sync)
+    for row in db.scalars(select(Container).where(Container.is_demo.is_(False))).all():
         if row.container_id not in seen and row.status != "removed":
             row.status = "removed"
             db.commit()
