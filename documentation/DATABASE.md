@@ -30,24 +30,187 @@ erDiagram
     MONITORED_DIRECTORIES ||--o{ FILE_INTEGRITY_RECORDS : "baseline"
     MONITORED_DIRECTORIES ||--o{ FILE_INTEGRITY_CHANGES : "history"
 
-    ROLES { int id PK; string name UK; string description }
-    USERS { int id PK; string email UK; string username UK; string hashed_password; int role_id FK; bool is_active; datetime last_login_at; int failed_login_count; datetime locked_until }
-    LOGIN_ATTEMPTS { int id PK; int user_id FK; string identifier; string ip_address; string user_agent; bool success; string reason; datetime created_at }
-    REFRESH_TOKENS { int id PK; string jti UK; int user_id FK; datetime expires_at; bool revoked }
-    DEVICES { int id PK; string name; string hostname UK; string device_type; string os_info; string ip_address; string status; datetime last_seen_at }
-    SYSTEM_METRICS { int id PK; int device_id FK; datetime timestamp; float cpu_percent; float memory_percent; float disk_percent; float net_send_rate; float net_recv_rate; int process_count; int connection_count }
-    CONTAINERS { int id PK; string container_id UK; string name; string image; string status; string health; int restart_count; float cpu_percent; float memory_percent; int owner_id FK; int device_id FK; datetime expected_stop_at }
-    VIRTUAL_MACHINES { int id PK; string uuid UK; string name; string state; string os_type; int memory_mb; int cpus; json config; int owner_id FK; int device_id FK }
-    DETECTION_RULES { int id PK; string key UK; string name; string category; string severity; bool enabled; string condition; json params; text recommended_response }
-    SECURITY_EVENTS { int id PK; string event_type; string category; string severity; text message; string resource; json details; int rule_id FK; datetime created_at }
-    ALERTS { int id PK; string title; string severity; string category; string status; string resource_type; string resource_name; string fingerprint; int occurrences; json details; int rule_id FK; int event_id FK; int acknowledged_by_id FK; int resolved_by_id FK }
-    MONITORED_DIRECTORIES { int id PK; string path UK; bool recursive; bool enabled; datetime baseline_at; datetime last_scan_at; int created_by_id FK }
-    FILE_INTEGRITY_RECORDS { int id PK; int directory_id FK; string file_path; string sha256; bigint size; string status }
-    FILE_INTEGRITY_CHANGES { int id PK; int directory_id FK; string file_path; string change_type; string old_hash; string new_hash; datetime detected_at }
-    ANOMALY_RECORDS { int id PK; int device_id FK; int metric_id FK; datetime timestamp; float score; bool is_anomaly; json features; text explanation; string model_version }
-    ACTIVITY_LOGS { int id PK; int user_id FK; string action; string resource_type; string resource_id; json details; string ip_address; datetime created_at }
-    REPORTS { int id PK; string title; string format; datetime start_date; datetime end_date; json sections; string file_name; json summary; int created_by_id FK }
-    SYSTEM_SETTINGS { string key PK; json value }
+    ROLES {
+        int id PK
+        string name UK
+        string description
+    }
+    USERS {
+        int id PK
+        string email UK
+        string username UK
+        string hashed_password
+        int role_id FK
+        bool is_active
+        datetime last_login_at
+        int failed_login_count
+        datetime locked_until
+    }
+    LOGIN_ATTEMPTS {
+        int id PK
+        int user_id FK
+        string identifier
+        string ip_address
+        string user_agent
+        bool success
+        string reason
+        datetime created_at
+    }
+    REFRESH_TOKENS {
+        int id PK
+        string jti UK
+        int user_id FK
+        datetime expires_at
+        bool revoked
+    }
+    DEVICES {
+        int id PK
+        string name
+        string hostname UK
+        string device_type
+        string os_info
+        string ip_address
+        string status
+        datetime last_seen_at
+    }
+    SYSTEM_METRICS {
+        int id PK
+        int device_id FK
+        datetime timestamp
+        float cpu_percent
+        float memory_percent
+        float disk_percent
+        float net_send_rate
+        float net_recv_rate
+        int process_count
+        int connection_count
+    }
+    CONTAINERS {
+        int id PK
+        string container_id UK
+        string name
+        string image
+        string status
+        string health
+        int restart_count
+        float cpu_percent
+        float memory_percent
+        int owner_id FK
+        int device_id FK
+        datetime expected_stop_at
+    }
+    VIRTUAL_MACHINES {
+        int id PK
+        string uuid UK
+        string name
+        string state
+        string os_type
+        int memory_mb
+        int cpus
+        json config
+        int owner_id FK
+        int device_id FK
+    }
+    DETECTION_RULES {
+        int id PK
+        string key UK
+        string name
+        string category
+        string severity
+        bool enabled
+        string condition
+        json params
+        text recommended_response
+    }
+    SECURITY_EVENTS {
+        int id PK
+        string event_type
+        string category
+        string severity
+        text message
+        string resource
+        json details
+        int rule_id FK
+        datetime created_at
+    }
+    ALERTS {
+        int id PK
+        string title
+        string severity
+        string category
+        string status
+        string resource_type
+        string resource_name
+        string fingerprint
+        int occurrences
+        json details
+        int rule_id FK
+        int event_id FK
+        int acknowledged_by_id FK
+        int resolved_by_id FK
+    }
+    MONITORED_DIRECTORIES {
+        int id PK
+        string path UK
+        bool recursive
+        bool enabled
+        datetime baseline_at
+        datetime last_scan_at
+        int created_by_id FK
+    }
+    FILE_INTEGRITY_RECORDS {
+        int id PK
+        int directory_id FK
+        string file_path
+        string sha256
+        bigint size
+        string status
+    }
+    FILE_INTEGRITY_CHANGES {
+        int id PK
+        int directory_id FK
+        string file_path
+        string change_type
+        string old_hash
+        string new_hash
+        datetime detected_at
+    }
+    ANOMALY_RECORDS {
+        int id PK
+        int device_id FK
+        int metric_id FK
+        datetime timestamp
+        float score
+        bool is_anomaly
+        json features
+        text explanation
+        string model_version
+    }
+    ACTIVITY_LOGS {
+        int id PK
+        int user_id FK
+        string action
+        string resource_type
+        string resource_id
+        json details
+        string ip_address
+        datetime created_at
+    }
+    REPORTS {
+        int id PK
+        string title
+        string format
+        datetime start_date
+        datetime end_date
+        json sections
+        string file_name
+        json summary
+        int created_by_id FK
+    }
+    SYSTEM_SETTINGS {
+        string key PK
+        json value
+    }
 ```
 
 ## Tables
