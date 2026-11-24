@@ -28,6 +28,12 @@ is authorised to manage**; it performs no scanning or testing of third-party sys
 | Errors | Validation errors return field messages; unhandled errors return a generic 500 and are logged server-side | `main.py` |
 | Audit | Logins, logouts, registration, profile/password changes, admin user changes, rule/settings changes, container/VM actions, log views, FIM changes, ML training, reports | `core/audit.py` → `activity_logs` |
 | Demo tooling | `scripts/demo_scenarios.py` refuses non-loopback targets | `backend/scripts/` |
+| Notifications | Users can only list, read or update their own notifications (others' ids return `404`); personal WebSocket channel delivers only the caller's notifications | `routes/notifications.py`, `realtime/bus.py` |
+| Incidents | Admins see and manage all incidents; other users only those assigned to or created by them; only admins execute response actions, change severity or assignment; executed actions reuse the validated adapters, are audited and recorded even when they fail; an admin cannot disable their own account | `routes/incidents.py`, `services/incidents.py` |
+| Compliance | Checklist, posture and posture reports are admin-only (they reveal weaknesses); host checks run fixed read-only commands without a shell | `routes/compliance.py`, `compliance/checks.py` |
+| Diagnostics | Admin-only; reports configuration state (e.g. ephemeral JWT secret) without exposing secret values | `services/diagnostics.py` |
+| Demonstration data | Flagged `is_demo`, excluded from real views by default; demo containers/VMs can never be resolved by Docker/VirtualBox endpoints or incident actions; scenarios never touch real accounts, files or login tables | `services/demo.py`, routers |
+| Audit export | Admin-only CSV export of the (filtered) audit log; the export itself is audited | `routes/users.py` |
 
 ## Detection honesty
 
@@ -48,3 +54,5 @@ withheld until enough real data exists.
   that allows only the required endpoints.
 * No TLS termination is included; put the stack behind HTTPS in any shared environment.
 * MFA is not implemented.
+* The audit log is an append-only table in the application database, but it is not cryptographically
+  tamper-evident; ship it to an external log store for stronger guarantees.
