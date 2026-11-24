@@ -78,4 +78,4 @@ def processes(sort: str = Query("cpu", pattern="^(cpu|memory)$"), limit: int = Q
 def devices(_: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from app.models import Device
     get_local_device(db)
-    return db.scalars(select(Device).order_by(Device.id)).all()
+    return db.scalars(select(Device).where(Device.is_demo.is_(False)).order_by(Device.id)).all()

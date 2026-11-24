@@ -42,7 +42,7 @@ def overview(days: int = Query(7, ge=1, le=90), _: User = Depends(get_current_us
         "net_recv_avg": round(sum(x.net_recv_rate for x in v) / len(v), 1),
     } for k, v in sorted(buckets.items())]
 
-    alerts = db.scalars(select(Alert).where(Alert.created_at >= since)).all()
+    alerts = db.scalars(select(Alert).where(Alert.created_at >= since, Alert.is_demo.is_(False))).all()
     per_day: dict = defaultdict(lambda: {"critical": 0, "high": 0, "medium": 0, "low": 0})
     by_cat: dict = defaultdict(int)
     by_res: dict = defaultdict(int)
@@ -54,7 +54,7 @@ def overview(days: int = Query(7, ge=1, le=90), _: User = Depends(get_current_us
     mttr = (sum((ensure_aware(a.resolved_at) - ensure_aware(a.created_at)).total_seconds() for a in resolved)
             / len(resolved) / 60) if resolved else None
     events = dict(db.execute(select(SecurityEvent.category, func.count(SecurityEvent.id))
-                             .where(SecurityEvent.created_at >= since).group_by(SecurityEvent.category)).all())
+                             .where(SecurityEvent.created_at >= since, SecurityEvent.is_demo.is_(False)).group_by(SecurityEvent.category)).all())
     return {
         "days": days, "samples": len(metrics), "bucket_minutes": bucket_minutes, "timeline": timeline,
         "alerts_per_day": [{"date": d, **v} for d, v in sorted(per_day.items())],

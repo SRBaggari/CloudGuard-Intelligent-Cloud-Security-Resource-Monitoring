@@ -42,7 +42,7 @@ def gather(db: Session, start: datetime, end: datetime) -> dict[str, Any]:
         series = [{"t": r.timestamp, "cpu": r.cpu_percent, "mem": r.memory_percent, "disk": r.disk_percent}
                   for r in rows[::step]]
 
-    alerts = db.scalars(select(Alert).where(Alert.created_at >= start, Alert.created_at <= end)
+    alerts = db.scalars(select(Alert).where(Alert.created_at >= start, Alert.created_at <= end, Alert.is_demo.is_(False))
                         .order_by(Alert.created_at.desc())).all()
     by_sev = {s: sum(a.severity == s for a in alerts) for s in SEV}
     by_cat: dict[str, int] = {}
@@ -52,12 +52,12 @@ def gather(db: Session, start: datetime, end: datetime) -> dict[str, Any]:
         by_status[a.status] = by_status.get(a.status, 0) + 1
 
     events_total = db.scalar(select(func.count(SecurityEvent.id)).where(
-        SecurityEvent.created_at >= start, SecurityEvent.created_at <= end)) or 0
+        SecurityEvent.created_at >= start, SecurityEvent.created_at <= end, SecurityEvent.is_demo.is_(False))) or 0
     anomalies = db.scalars(select(AnomalyRecord).where(
         AnomalyRecord.timestamp >= start, AnomalyRecord.timestamp <= end, AnomalyRecord.is_anomaly.is_(True))
         .order_by(AnomalyRecord.timestamp.desc())).all()
-    containers = db.scalars(select(Container).order_by(Container.name)).all()
-    vms = db.scalars(select(VirtualMachine).order_by(VirtualMachine.name)).all()
+    containers = db.scalars(select(Container).where(Container.is_demo.is_(False)).order_by(Container.name)).all()
+    vms = db.scalars(select(VirtualMachine).where(VirtualMachine.is_demo.is_(False)).order_by(VirtualMachine.name)).all()
 
     def r(v):
         return round(float(v), 2) if v is not None else None

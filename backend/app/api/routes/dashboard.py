@@ -26,8 +26,8 @@ def summary(user: User = Depends(get_current_user), db: Session = Depends(get_db
     docker = get_docker_adapter().status()
     vbox = get_vbox_adapter().status()
 
-    cstmt = select(Container).where(Container.status != "removed")
-    vstmt = select(VirtualMachine)
+    cstmt = select(Container).where(Container.status != "removed", Container.is_demo.is_(False))
+    vstmt = select(VirtualMachine).where(VirtualMachine.is_demo.is_(False))
     if not user.is_admin:
         cstmt = cstmt.where(Container.owner_id == user.id)
         vstmt = vstmt.where(VirtualMachine.owner_id == user.id)
@@ -35,17 +35,17 @@ def summary(user: User = Depends(get_current_user), db: Session = Depends(get_db
     vms = db.scalars(vstmt).all() if vbox.get("available") else []
 
     since = utcnow() - timedelta(hours=24)
-    active = select(Alert).where(Alert.status != "resolved")
-    sev_counts = dict(db.execute(select(Alert.severity, func.count(Alert.id)).where(Alert.status != "resolved")
+    active = select(Alert).where(Alert.status != "resolved", Alert.is_demo.is_(False))
+    sev_counts = dict(db.execute(select(Alert.severity, func.count(Alert.id)).where(Alert.status != "resolved", Alert.is_demo.is_(False))
                                  .group_by(Alert.severity)).all())
-    cat_counts = dict(db.execute(select(Alert.category, func.count(Alert.id)).where(Alert.created_at >= since)
+    cat_counts = dict(db.execute(select(Alert.category, func.count(Alert.id)).where(Alert.created_at >= since, Alert.is_demo.is_(False))
                                  .group_by(Alert.category)).all())
     recent_alerts = db.scalars(active.order_by(Alert.last_seen_at.desc()).limit(6)).all()
-    events_24h = db.scalar(select(func.count(SecurityEvent.id)).where(SecurityEvent.created_at >= since)) or 0
+    events_24h = db.scalar(select(func.count(SecurityEvent.id)).where(SecurityEvent.created_at >= since, SecurityEvent.is_demo.is_(False))) or 0
     anomalies_24h = db.scalar(select(func.count(AnomalyRecord.id)).where(
         AnomalyRecord.timestamp >= since, AnomalyRecord.is_anomaly.is_(True))) or 0
     failed_logins_24h = db.scalar(select(func.count(SecurityEvent.id)).where(
-        SecurityEvent.created_at >= since, SecurityEvent.event_type == "login_failed")) or 0
+        SecurityEvent.created_at >= since, SecurityEvent.event_type == "login_failed", SecurityEvent.is_demo.is_(False))) or 0
 
     activity = []
     if user.is_admin:
@@ -63,8 +63,8 @@ def summary(user: User = Depends(get_current_user), db: Session = Depends(get_db
         health["issues"].append(f"{sev_counts['high']} high-severity alert(s) open")
 
     return {
-        "devices": {"total": (db.scalar(select(func.count(Device.id))) or 0) + len(vms) + len(containers),
-                    "hosts": db.scalar(select(func.count(Device.id))) or 0},
+        "devices": {"total": (db.scalar(select(func.count(Device.id)).where(Device.is_demo.is_(False))) or 0) + len(vms) + len(containers),
+                    "hosts": db.scalar(select(func.count(Device.id)).where(Device.is_demo.is_(False))) or 0},
         "vms": {"available": vbox.get("available", False), "mode": vbox.get("mode"), "message": vbox.get("message"),
                 "total": len(vms), "running": sum(v.state == "running" for v in vms)},
         "containers": {"available": docker.get("available", False), "mode": docker.get("mode"),
