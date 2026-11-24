@@ -477,3 +477,68 @@ class IncidentOut(IncidentSummaryOut):
     alerts: list[AlertOut]
     timeline: list[IncidentEventOut]
     actions: list[IncidentActionOut]
+
+
+# ---------------------------------------------------------------- compliance
+CheckStatus = Literal["pass", "fail", "warning", "not_applicable"]
+
+
+class ComplianceCheckOut(ORM):
+    id: int
+    key: str
+    title: str
+    description: str
+    category: str
+    severity: str
+    check_type: str
+    reference: str
+    remediation: str
+    enabled: bool
+    is_custom: bool
+    manual_status: str | None
+    manual_evidence: str
+    assessed_by_id: int | None
+    assessed_at: DT | None
+    last_status: str
+    last_evidence: str
+    last_checked_at: DT | None
+
+
+class ComplianceCheckCreate(BaseModel):
+    title: str = Field(min_length=3, max_length=255)
+    description: str = Field(default="", max_length=5000)
+    category: str = Field(default="organisational", pattern=r"^[a-z_]{2,32}$")
+    severity: Severity = "medium"
+    remediation: str = Field(default="", max_length=5000)
+    reference: str = Field(default="", max_length=255)
+
+
+class ComplianceCheckUpdate(BaseModel):
+    enabled: bool | None = None
+    severity: Severity | None = None
+    title: str | None = Field(default=None, min_length=3, max_length=255)  # custom checks only
+    description: str | None = Field(default=None, max_length=5000)
+    remediation: str | None = Field(default=None, max_length=5000)
+
+
+class ManualAssessment(BaseModel):
+    status: CheckStatus
+    evidence: str = Field(min_length=3, max_length=5000)
+
+
+class ComplianceRunOut(ORM):
+    id: int
+    score: float
+    grade: str
+    counts: dict[str, int]
+    results: list[dict[str, Any]]
+    run_by_id: int | None
+    created_at: DT
+
+
+class ComplianceRunSummary(ORM):
+    id: int
+    score: float
+    grade: str
+    counts: dict[str, int]
+    created_at: DT
