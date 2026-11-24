@@ -227,4 +227,32 @@ describe("routing and pages", () => {
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(screen.getByText("Security Operations Dashboard")).toBeInTheDocument());
   });
+
+  it("notification bell shows unread count and marks items read", async () => {
+    tokens.set("access", "refresh");
+    const read: number[] = [];
+    let unread = 2;
+    const n = (id: number, is_read: boolean) => ({
+      id, category: "alert", severity: "high", title: `Alert ${id}`, message: "", link: "", alert_id: id,
+      is_read, read_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    });
+    handler = (url, init) => {
+      if (url === "/api/auth/me") return { body: ADMIN };
+      if (url.startsWith("/api/notifications/") && url.endsWith("/read") && init?.method === "POST") {
+        read.push(Number(url.split("/")[3]));
+        unread = 1;
+        return { body: n(1, true) };
+      }
+      if (url.startsWith("/api/notifications")) return { body: { items: [n(1, unread < 2), n(2, false)], total: 2, page: 1, page_size: 8, unread } };
+      if (url.startsWith("/api/dashboard/summary")) return { body: SUMMARY };
+      if (url.startsWith("/api/monitoring/history")) return { body: [] };
+      return undefined;
+    };
+    renderApp("/");
+    const bell = await screen.findByRole("button", { name: "Notifications: 2 unread" });
+    await userEvent.click(bell);
+    await userEvent.click(await screen.findByText("Alert 1"));
+    await waitFor(() => expect(read).toEqual([1]));
+    expect(await screen.findByRole("button", { name: "Notifications: 1 unread" })).toBeInTheDocument();
+  });
 });
