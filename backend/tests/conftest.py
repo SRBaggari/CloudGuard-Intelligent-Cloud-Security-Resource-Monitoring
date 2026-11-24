@@ -14,7 +14,8 @@ from pathlib import Path
 _TMP = tempfile.mkdtemp(prefix="cloudguard-test-")
 os.environ.update({
     "APP_ENV": "test",
-    "DATABASE_URL": "sqlite://",
+    # set TEST_DATABASE_URL to run the suite against PostgreSQL
+    "DATABASE_URL": os.environ.get("TEST_DATABASE_URL", "sqlite://"),
     "JWT_SECRET_KEY": "test-secret-key-not-for-production-0123456789",
     "INTEGRATION_MODE": "mock",
     "ENABLE_BACKGROUND_TASKS": "false",
