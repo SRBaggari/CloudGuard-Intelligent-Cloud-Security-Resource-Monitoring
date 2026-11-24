@@ -144,3 +144,29 @@ def test_prometheus_endpoint(client, db):
     collect_and_store(db)
     r = client.get("/metrics")
     assert r.status_code == 200 and "cloudguard_host_cpu_percent" in r.text
+
+
+def test_diagnostics_admin_only_and_measured(client, admin, user, db):
+    from app.monitoring.service import collect_and_store
+    collect_and_store(db)
+    assert client.get("/api/settings/diagnostics", headers=user).status_code == 403
+    d = client.get("/api/settings/diagnostics", headers=admin).json()
+    assert d["status"] in ("ok", "warning", "error")
+    names = {c["name"]: c for c in d["checks"]}
+    assert names["Database connection"]["status"] == "ok" and d["database"]["latency_ms"] >= 0
+    assert names["Metric collection"]["status"] == "ok"
+    assert names["Background tasks"]["status"] == "warning"  # disabled in the test configuration
+    assert d["application"]["uptime_seconds"] >= 0 and d["database"]["rows"]["users"] == 2  # admin + alice
+    assert "user_sockets" in d["realtime"]
+
+
+def test_diagnostics_reports_failing_loop(client, admin):
+    from app.core.database import utcnow
+    from app.services.scheduler import LOOP_STATUS
+    LOOP_STATUS["metrics"] = {"runs": 5, "errors": 2, "last_run": utcnow().isoformat(), "last_duration_ms": 3.0,
+                              "last_error": "OSError: boom", "interval_seconds": 5}
+    try:
+        loops = client.get("/api/settings/diagnostics", headers=admin).json()["background_loops"]
+        assert loops["metrics"]["status"] == "warning" and loops["metrics"]["last_error"] == "OSError: boom"
+    finally:
+        LOOP_STATUS.clear()
