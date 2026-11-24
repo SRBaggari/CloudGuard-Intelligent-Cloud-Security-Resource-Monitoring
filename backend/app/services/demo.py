@@ -142,9 +142,11 @@ def _cpu_spike(db: Session, user: User) -> list[Alert | None]:
     last = db.scalar(select(SystemMetric).where(SystemMetric.device_id == dev.id).order_by(SystemMetric.timestamp.desc()).limit(1))
     # always place the spike after the newest existing sample so it forms the "last N samples" the rule reads
     base = max(utcnow(), ensure_aware(last.timestamp) if last else utcnow())
+    n_existing = db.scalar(select(func.count(SystemMetric.id)).where(SystemMetric.device_id == dev.id)) or 0
     rows = []
     for k, cpu in enumerate((96.4, 97.8, 98.6)):
-        m = _metric(dev, base + timedelta(seconds=10 * (k + 1)), 999 + k)
+        # continue the generated series so memory/disk stay on their trend; only CPU spikes
+        m = _metric(dev, base + timedelta(seconds=10 * (k + 1)), n_existing - 1)
         m.cpu_percent = cpu
         db.add(m)
         rows.append(m)
