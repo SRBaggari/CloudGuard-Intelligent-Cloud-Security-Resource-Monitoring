@@ -132,3 +132,34 @@ test("capacity planning shows estimates or explains missing history", async ({ p
   await page.waitForTimeout(500);
   await shot(page, "21-capacity");
 });
+
+test("settings: thresholds, diagnostics and saved theme preference", async ({ page }) => {
+  await login(page);
+  await page.goto("/settings");
+  await expect(page.getByRole("heading", { name: "Security thresholds" })).toBeVisible();
+  const warning = page.getByLabel("High CPU utilisation warning");
+  const original = await warning.inputValue();
+  await warning.fill(original === "85" ? "84" : "85");
+  await page.getByRole("row").filter({ hasText: "High CPU utilisation" }).getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Threshold saved")).toBeVisible();
+  // restore the original value so the test leaves configuration unchanged
+  await warning.fill(original);
+  await page.getByRole("row").filter({ hasText: "High CPU utilisation" }).getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Threshold saved").nth(1)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "System health diagnostics" })).toBeVisible();
+  await expect(page.getByText("Database connection")).toBeVisible();
+  await expect(page.getByText(/Loop: metrics/)).toBeVisible();
+  await page.getByRole("heading", { name: "System health diagnostics" }).scrollIntoViewIfNeeded();
+  await page.waitForTimeout(500);
+  await shot(page, "22-settings-diagnostics");
+
+  // appearance is stored on the profile and survives a fresh session
+  await page.goto("/profile");
+  await page.getByLabel("Appearance").selectOption("light");
+  await expect(page.getByText("Appearance saved")).toBeVisible();
+  await page.evaluate(() => localStorage.removeItem("cg-theme"));
+  await page.reload();
+  await expect(page.locator("html")).toHaveClass(/light/);
+  await page.getByLabel("Appearance").selectOption("dark");
+  await expect(page.locator("html")).toHaveClass(/dark/);
+});
