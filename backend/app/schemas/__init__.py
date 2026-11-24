@@ -359,3 +359,26 @@ class SettingsUpdate(BaseModel):
 
 
 TokenPair.model_rebuild()
+
+
+# ---------------------------------------------------------------- notifications
+class NotificationOut(ORM):
+    id: int
+    category: str
+    severity: str
+    title: str
+    message: str
+    link: str
+    alert_id: int | None
+    is_read: bool
+    read_at: DT | None
+    created_at: DT
+    updated_at: DT
+
+
+class NotificationPage(Page[NotificationOut]):
+    unread: int
+
+
+class NotificationPreferences(BaseModel):
+    min_severity: Severity
