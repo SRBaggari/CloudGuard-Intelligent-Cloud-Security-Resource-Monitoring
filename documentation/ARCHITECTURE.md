@@ -227,7 +227,7 @@ and record manual actions. Resolving an incident resolves its linked alerts.
 
 ```mermaid
 flowchart LR
-    S["Demo scenario (admin)"] -->|demo_scope()| R["Same rule engine / container rules"]
+    S["Demo scenario (admin)"] -->|"demo_scope()"| R["Same rule engine / container rules"]
     R --> F["is_demo = true<br/>fingerprint prefix 'demo:'<br/>notification title '[DEMO]'"]
     F --> T[("Same tables, flagged rows")]
     T -->|default queries: is_demo = false| Real["Dashboard · Alert Center · Analytics<br/>Reports · Compliance · Containers/VMs"]
