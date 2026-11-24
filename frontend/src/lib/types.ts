@@ -70,6 +70,7 @@ export interface Alert {
   resolved_by_id: number | null;
   resolved_at: string | null;
   resolution_note: string;
+  is_demo?: boolean;
   created_at: string;
 }
 

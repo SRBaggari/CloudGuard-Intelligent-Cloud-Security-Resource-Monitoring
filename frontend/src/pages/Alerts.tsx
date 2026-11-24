@@ -46,6 +46,7 @@ function AlertDetail({ id, onClose, onChanged }: { id: number; onClose: () => vo
             <Badge tone={statusTone(a.status)} dot>{titleCase(a.status)}</Badge>
             <Badge>{titleCase(a.category)}</Badge>
             {a.occurrences > 1 && <Badge tone="info">Seen {a.occurrences}×</Badge>}
+            {a.is_demo && <Badge tone="info">Demonstration data</Badge>}
           </div>
           <div>
             <h3 className="text-base font-semibold text-ink">{a.title}</h3>
@@ -107,6 +108,7 @@ export default function Alerts() {
   const [qDebounced, setQDebounced] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [showDemo, setShowDemo] = useState(false);
   const [page, setPage] = useState(1);
   const selectedId = params.get("id") ? Number(params.get("id")) : null;
 
@@ -114,10 +116,10 @@ export default function Alerts() {
     const t = setTimeout(() => setQDebounced(q), 300);
     return () => clearTimeout(t);
   }, [q]);
-  useEffect(() => setPage(1), [status, severity, category, qDebounced, start, end]);
+  useEffect(() => setPage(1), [status, severity, category, qDebounced, start, end, showDemo]);
 
   const query = {
-    status, severity, category, q: qDebounced, page, page_size: 20,
+    status, severity, category, q: qDebounced, page, page_size: 20, include_demo: showDemo || undefined,
     start: start ? new Date(start).toISOString() : undefined,
     end: end ? new Date(end + "T23:59:59").toISOString() : undefined,
   };
@@ -170,6 +172,10 @@ export default function Alerts() {
           </Select>
           <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="w-38" aria-label="From date" />
           <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="w-38" aria-label="To date" />
+          <label className="flex items-center gap-2 text-xs text-ink-2" title="Labelled sample alerts from Demo & Learning mode">
+            <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={showDemo} onChange={(e) => setShowDemo(e.target.checked)} />
+            Show demonstration data
+          </label>
         </div>
         {error ? <ErrorState message={error.message} onRetry={reload} /> : loading && !data ? <Spinner /> : !data?.items.length ? (
           <EmptyState icon={<ShieldCheck className="size-5 text-good" />} title="No alerts match these filters"
@@ -180,7 +186,7 @@ export default function Alerts() {
               {data.items.map((a) => (
                 <tr key={a.id} onClick={() => setParams({ id: String(a.id) })} className="cursor-pointer hover:bg-surface-2">
                   <td className="px-4 py-3"><SeverityBadge severity={a.severity} /></td>
-                  <td className="max-w-md px-4 py-3"><p className="truncate text-ink">{a.title}</p><p className="truncate text-xs text-muted">{a.description}</p></td>
+                  <td className="max-w-md px-4 py-3"><p className="truncate text-ink">{a.is_demo && <span className="mr-1.5 rounded bg-accent/15 px-1 py-0.5 text-[10px] font-bold text-accent">DEMO</span>}{a.title}</p><p className="truncate text-xs text-muted">{a.description}</p></td>
                   <td className="px-4 py-3 text-xs text-ink-2">{titleCase(a.category)}</td>
                   <td className="max-w-[180px] truncate px-4 py-3 text-xs text-ink-2">{a.resource_name}</td>
                   <td className="px-4 py-3"><Badge tone={statusTone(a.status)} dot>{titleCase(a.status)}</Badge></td>
