@@ -13,7 +13,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import text
 
 from app.api.routes import (
-    analytics, auth, capacity, compliance, containers, dashboard, incidents, integrity, monitoring, notifications, reports, security, settings, topology, users, vms,
+    analytics, auth, capacity, compliance, containers, dashboard, demo, incidents, integrity, monitoring, notifications, reports, security, settings, topology, users, vms,
     ws,
 )
 from app.core.config import get_settings
@@ -106,7 +106,7 @@ async def unhandled_handler(request: Request, exc: Exception):
 
 
 for r in (auth, users, dashboard, monitoring, containers, vms, security, integrity, analytics, reports, settings,
-          notifications, incidents, topology, compliance, capacity, ws):
+          notifications, incidents, topology, compliance, capacity, demo, ws):
     app.include_router(r.router)
 
 
