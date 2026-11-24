@@ -21,4 +21,6 @@ def seed(db: Session) -> None:
         if r["key"] not in existing:
             db.add(DetectionRule(**r))
     db.commit()
+    from app.compliance.service import seed_checks
+    seed_checks(db)
     get_local_device(db)
