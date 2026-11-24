@@ -75,7 +75,14 @@ flowchart LR
 | `ml_engine/` | `detector.py` Isolation Forest training, evaluation, scoring, explanations |
 | `reports/` | `generator.py` data aggregation and PDF/CSV rendering |
 | `services/` | alerts (dedupe + push), runtime settings, seeding, background scheduler |
-| `realtime/` | thread-safe WebSocket broadcast hub |
+| `realtime/` | thread-safe WebSocket hub: channel broadcast plus per-user delivery (notifications) |
+| `compliance/` | CIS-inspired checklist definitions, automated checks, posture scoring |
+| `services/incidents.py` | incident lifecycle, timeline, authorised response actions |
+| `services/notifications.py` | per-user notifications with de-duplication and severity preferences |
+| `services/topology.py` | graph of monitored resources with health and alert counts |
+| `services/capacity.py` | trend analysis and threshold estimates from measured history |
+| `services/diagnostics.py` | live system health diagnostics |
+| `services/demo.py` | labelled demonstration environment and scenarios |
 
 ## 3. Key flows
 
@@ -164,3 +171,69 @@ instructions; no containers/VMs are shown as monitored and the rest of CloudGuar
 | `components/charts` | Recharts wrappers with validated palette, legends and tooltips |
 | `components/layout` | sidebar, top bar with live notification bell, protected/admin routes |
 | `pages/` | one page per module (lazy-loaded) |
+
+
+## 7. Enhancement modules (v1.1)
+
+### 7.1 Notifications and de-duplication
+
+```mermaid
+sequenceDiagram
+    participant E as Rule engine
+    participant A as alerts.raise_alert
+    participant N as notifications.notify_alert
+    participant DB as Database
+    participant WS as /ws/notifications (per user)
+    E->>A: detection (rule, resource)
+    A->>DB: new alert, or bump existing (same fingerprint)
+    A->>N: is_new / escalated
+    alt new alert
+        N->>DB: one row per active user above their min severity (unique user_id + "alert:{id}")
+        N->>WS: notification.created
+    else severity escalated
+        N->>DB: same row updated, marked unread
+        N->>WS: notification.updated
+    else repeated detection
+        N-->>N: nothing (no duplicate notification)
+    end
+```
+
+### 7.2 Incident response
+
+Incidents group related alerts and move through **detected → acknowledged → investigating → resolved**
+(forward skips allowed, resolved incidents can be reopened). Every change is appended to an
+immutable `incident_events` timeline. Response actions either *execute* through the same authorised
+code paths used elsewhere (Docker container stop/restart, VirtualBox shutdown, disable account /
+revoke sessions / unlock, FIM re-baseline) or are *recorded* as manual actions; failures are recorded
+too. Executing actions requires an administrator; the assignee may progress the incident, add notes
+and record manual actions. Resolving an incident resolves its linked alerts.
+
+### 7.3 Topology, capacity, compliance, diagnostics
+
+* **Topology** is computed on request from the database (no invented nodes): host → Docker Engine →
+  containers → networks, and host → VirtualBox → VMs. Unavailable integrations contribute no nodes.
+* **Capacity planning** fits an ordinary least-squares line to bucketed averages of measured
+  history, extrapolates over the horizon with a ±1.96σ residual band, and derives days until the
+  rule thresholds. Values carry `kind: "measured"` or `kind: "estimate"`; with < 3 h / 12 buckets of
+  history the API returns `insufficient_data`.
+* **Compliance** runs 23 automated, read-only checks (application config, identity, logging, host
+  firewall/SSH/disk/uptime via fixed non-shell commands, Docker container settings via inspect) plus
+  manual organisational items, scoring them with severity weights. Checks are *inspired by* CIS
+  Controls v8 and CIS Benchmarks; this is not a certification.
+* **Diagnostics** measure DB round-trip, migration revision, background-loop health (runs, errors,
+  last run), collector freshness, process-scan worker, storage and WebSocket clients at request time.
+
+### 7.4 Demonstration data separation
+
+```mermaid
+flowchart LR
+    S["Demo scenario (admin)"] -->|demo_scope()| R["Same rule engine / container rules"]
+    R --> F["is_demo = true<br/>fingerprint prefix 'demo:'<br/>notification title '[DEMO]'"]
+    F --> T[("Same tables, flagged rows")]
+    T -->|default queries: is_demo = false| Real["Dashboard · Alert Center · Analytics<br/>Reports · Compliance · Containers/VMs"]
+    T -->|explicit include_demo / demo_only| Demo["Demo & Learning center<br/>demo topology · demo capacity"]
+```
+
+Demo rows use `demo*` names, a `.demo` hostname and documentation IP ranges. Real Docker/VirtualBox
+syncs never modify them, container/VM endpoints and incident response actions never resolve to them,
+and `POST /api/demo/reset` deletes only flagged rows.
