@@ -10,10 +10,15 @@ const shot = (page: Page, name: string) => page.screenshot({ path: path.join(SHO
 
 test.describe.configure({ mode: "serial" });
 
-async function login(page: Page) {
-  await page.request.post("/api/auth/register", {
+// Register once per file (a 409 means the account exists). Registering before every sign-in would trip
+// CloudGuard's own authentication rate limit (20 requests/minute per IP).
+test.beforeAll(async ({ request }) => {
+  await request.post("/api/auth/register", {
     data: { email: `${ADMIN.username}@example.com`, username: ADMIN.username, full_name: "Security Administrator", password: ADMIN.password },
   });
+});
+
+async function login(page: Page) {
   await page.goto("/login");
   await page.getByLabel("Username or email").fill(ADMIN.username);
   await page.getByLabel("Password").fill(ADMIN.password);
@@ -138,13 +143,16 @@ test("settings: thresholds, diagnostics and saved theme preference", async ({ pa
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "Security thresholds" })).toBeVisible();
   const warning = page.getByLabel("High CPU utilisation warning");
+  await expect(warning).not.toHaveValue("");
   const original = await warning.inputValue();
   await warning.fill(original === "85" ? "84" : "85");
   await page.getByRole("row").filter({ hasText: "High CPU utilisation" }).getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Threshold saved")).toBeVisible();
+  const save = page.getByRole("row").filter({ hasText: "High CPU utilisation" }).getByRole("button", { name: "Save" });
+  await expect(save).toBeDisabled(); // rules reloaded with the saved value
   // restore the original value so the test leaves configuration unchanged
   await warning.fill(original);
-  await page.getByRole("row").filter({ hasText: "High CPU utilisation" }).getByRole("button", { name: "Save" }).click();
+  await save.click();
   await expect(page.getByText("Threshold saved").nth(1)).toBeVisible();
   await expect(page.getByRole("heading", { name: "System health diagnostics" })).toBeVisible();
   await expect(page.getByText("Database connection")).toBeVisible();
