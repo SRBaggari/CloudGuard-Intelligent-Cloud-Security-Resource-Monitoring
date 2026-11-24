@@ -80,13 +80,19 @@ class Settings(BaseSettings):
         return self.database_url.startswith("sqlite")
 
 
+# True when no JWT secret was configured and an ephemeral one had to be generated
+EPHEMERAL_JWT_SECRET = False
+
+
 @lru_cache
 def get_settings() -> Settings:
+    global EPHEMERAL_JWT_SECRET
     s = Settings()
     if not s.jwt_secret_key:
         if s.app_env == "production":
             raise RuntimeError("JWT_SECRET_KEY must be set in production")
         s.jwt_secret_key = secrets.token_urlsafe(64)
+        EPHEMERAL_JWT_SECRET = True
         log.warning(
             "JWT_SECRET_KEY not set - generated an ephemeral secret. "
             "Tokens will be invalidated on restart. Set JWT_SECRET_KEY in .env."
