@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
 import { useApi } from "@/lib/hooks";
 import type { IntegrationStatus, Page, Settings, User } from "@/lib/types";
+import { DiagnosticsPanel, ThresholdsPanel } from "./SettingsPanels";
 
 function SettingsForm() {
   const toast = useToast();
@@ -146,8 +147,10 @@ function UsersAdmin() {
 export default function SettingsPage() {
   return (
     <div className="space-y-6">
-      <PageHeader title="Settings" description="Administrator configuration for monitoring, machine learning, integrations and users. Detection thresholds are tuned under Detection & Events." />
+      <PageHeader title="Settings" description="Monitoring intervals, security thresholds, machine learning, integration health, system diagnostics, users and roles. Appearance is set per user in Profile." />
       <SettingsForm />
+      <ThresholdsPanel />
+      <DiagnosticsPanel />
       <div className="grid gap-4 xl:grid-cols-[1fr_1.4fr]">
         <Integrations />
         <UsersAdmin />
