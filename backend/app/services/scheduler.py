@@ -8,7 +8,7 @@ import time
 from sqlalchemy import select
 
 from app.core.config import get_settings
-from app.core.database import SessionLocal
+from app.core.database import SessionLocal, utcnow
 from app.docker_integration.service import sync_containers
 from app.integrity.fim import scan_directory
 from app.ml_engine.detector import detector
@@ -21,6 +21,9 @@ from app.virtualization.service import sync_vms
 log = logging.getLogger("cloudguard.scheduler")
 
 FIM_INTERVAL_SECONDS = 300
+
+# Live status of each background loop, exposed by the diagnostics endpoint.
+LOOP_STATUS: dict[str, dict] = {}
 
 
 def _metrics_tick() -> int:
@@ -74,6 +77,8 @@ def _prune_tick() -> None:
 
 
 async def _loop(name: str, fn, default_interval: float) -> None:
+    st = LOOP_STATUS.setdefault(name, {"runs": 0, "errors": 0, "last_run": None, "last_duration_ms": None,
+                                       "last_error": None, "interval_seconds": default_interval})
     while True:
         started = time.monotonic()
         interval = default_interval
@@ -83,8 +88,14 @@ async def _loop(name: str, fn, default_interval: float) -> None:
                 interval = res
         except asyncio.CancelledError:
             raise
-        except Exception:
+        except Exception as e:
             log.exception("%s loop iteration failed", name)
+            st["errors"] += 1
+            st["last_error"] = f"{e.__class__.__name__}: {e}"[:300]
+        st["runs"] += 1
+        st["last_run"] = utcnow().isoformat()
+        st["last_duration_ms"] = round((time.monotonic() - started) * 1000, 1)
+        st["interval_seconds"] = interval
         await asyncio.sleep(max(0.5, interval - (time.monotonic() - started)))
 
 
