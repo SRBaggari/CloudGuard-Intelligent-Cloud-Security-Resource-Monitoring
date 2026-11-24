@@ -326,6 +326,7 @@ class ReportOut(ORM):
 class ActivityOut(ORM):
     id: int
     user_id: int | None
+    username: str | None = None
     action: str
     resource_type: str
     resource_id: str

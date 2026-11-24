@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, Index, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, TimestampMixin, utcnow
 
@@ -22,6 +22,12 @@ class ActivityLog(Base):
     details: Mapped[dict] = mapped_column(JSON, default=dict)
     ip_address: Mapped[str] = mapped_column(String(64), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+    user: Mapped["User | None"] = relationship(lazy="joined", viewonly=True)  # noqa: F821
+
+    @property
+    def username(self) -> str | None:
+        return self.user.username if self.user else None
 
 
 class Report(Base):
