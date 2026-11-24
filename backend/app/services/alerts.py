@@ -48,6 +48,7 @@ def raise_alert(
         select(Alert).where(Alert.fingerprint == fingerprint, Alert.status != "resolved").order_by(Alert.id.desc())
     )
     now = utcnow()
+    escalated = False
     if existing:
         existing.occurrences += 1
         existing.last_seen_at = now
@@ -55,6 +56,7 @@ def raise_alert(
         existing.description = description
         if SEVERITY_ORDER[severity] > SEVERITY_ORDER[existing.severity]:
             existing.severity = severity
+            escalated = True
         if details:
             existing.details = {**(existing.details or {}), **details}
         alert, is_new = existing, False
@@ -75,6 +77,12 @@ def raise_alert(
     })
     if is_new:
         log.info("ALERT [%s] %s (%s)", severity.upper(), title, resource_name)
+    try:
+        from app.services.notifications import notify_alert
+        notify_alert(db, alert, is_new=is_new, escalated=escalated)
+    except Exception:  # notification failures must never block detection
+        log.exception("failed to create notifications for alert %s", alert.id)
+        db.rollback()
     return alert
 
 
