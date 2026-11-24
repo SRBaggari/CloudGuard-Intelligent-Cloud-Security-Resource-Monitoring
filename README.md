@@ -13,7 +13,7 @@ security alerts.
 | **Frontend** | React 19 · TypeScript · Vite · Tailwind CSS 4 · Recharts · Lucide |
 | **Database** | PostgreSQL (SQLite supported for quick local runs and tests) |
 | **Ops** | Docker Compose · Prometheus · Grafana |
-| **Tests** | Pytest (80) · Vitest + Testing Library (16) · Playwright E2E (10) |
+| **Tests** | Pytest (145) · Vitest + Testing Library (17) · Playwright E2E (19) |
 
 Everything is free and open source. No paid APIs, cloud credits or API keys are required.
 
@@ -48,7 +48,32 @@ Everything is free and open source. No paid APIs, cloud credits or API keys are 
   containers, VMs, anomalies, alert history.
 * **Users & security** — registration (first user = admin), JWT access/refresh with rotation,
   Argon2id, RBAC, object-level ownership, login history, failed-login tracking, audit log,
-  rate limiting, profile and password management, light/dark themes.
+  rate limiting, profile and password management, light/dark/system themes saved per user.
+
+### Added in v1.1
+
+* **Incident response** — create incidents from alerts, stages *detected → acknowledged →
+  investigating → resolved*, assignee, root cause, investigation notes, an immutable timeline, and
+  response actions that are either executed through the authorised integrations (stop/restart a
+  container, shut down a VM, disable an account / revoke sessions / unlock, re-baseline FIM) or
+  recorded manually. MTTA/MTTR statistics.
+* **Notification Center** — real-time per-user notifications over a personal WebSocket, severity
+  categories, mark read / mark all read, history, minimum-severity preference, and de-duplication
+  (one notification per alert; only escalations re-surface it).
+* **Infrastructure topology** — interactive map of hosts, Docker Engine, containers, networks,
+  VirtualBox and VMs with health colours + labels, alert badges, details panel, zoom/pan, live refresh.
+* **Security audit & compliance** — 27-item configurable checklist (23 automated, read-only checks
+  *inspired by* CIS Controls v8 / CIS Benchmarks + manual and custom items), weighted posture score
+  and history, posture PDF/CSV report, audit-log filters and CSV export. No certification is claimed.
+* **Capacity planning** — utilisation trends from measured history, linear-trend estimates with a
+  ~95% band, days until warning/critical thresholds, memory/disk requirement estimates, containers
+  near their limits — estimates are always labelled as such.
+* **System settings** — security thresholds panel, live **system health diagnostics** (database,
+  migrations, background loops, collector, storage, integrations), saved theme preference.
+* **Demo & Learning** — a separate, labelled demonstration environment with scenarios that run
+  through the real rule engine, an incident walkthrough, demo topology and forecast; plus a
+  **Project information** page on cloud computing, virtualisation, containerisation and security
+  monitoring.
 
 ## Screenshots
 
@@ -58,6 +83,9 @@ Everything is free and open source. No paid APIs, cloud credits or API keys are 
 | ![Alert detail](documentation/screenshots/07b-alert-detail.png) | ![File integrity](documentation/screenshots/09-integrity.png) |
 | ![Anomaly detection](documentation/screenshots/11-anomaly-detection.png) | ![Detection rules](documentation/screenshots/08-detection-rules.png) |
 | ![Analytics](documentation/screenshots/10-analytics.png) | ![Light theme](documentation/screenshots/15-dashboard-light.png) |
+| ![Incident detail](documentation/screenshots/16-incident-detail.png) | ![Compliance](documentation/screenshots/20-compliance.png) |
+| ![Demo & Learning](documentation/screenshots/23-demo-center.png) | ![Capacity forecast](documentation/screenshots/24-capacity-demo-forecast.png) |
+| ![Topology](documentation/screenshots/19-topology.png) | ![Diagnostics](documentation/screenshots/22-settings-diagnostics.png) |
 
 More in [`documentation/screenshots`](documentation/screenshots).
 
@@ -159,15 +187,16 @@ detection-rule threshold are editable by administrators in the UI.
 ## Testing
 
 ```bash
-# Backend: 80 tests (auth, RBAC, API, monitoring, rules, Docker/VM via mock adapters, FIM, ML, reports, WebSockets)
+# Backend: 145 tests (auth, RBAC, API, monitoring, rules, Docker/VM via mock adapters, FIM, ML, reports, WebSockets,
+#          notifications, incidents, topology, compliance, capacity, diagnostics, demo-data separation)
 cd backend && pytest
 # …against PostgreSQL instead of SQLite:
 TEST_DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/cloudguard_test pytest
 
-# Frontend component/unit tests: 16 (Vitest + Testing Library)
+# Frontend component/unit tests: 17 (Vitest + Testing Library)
 cd frontend && npm test
 
-# End-to-end: 10 (Playwright) — requires backend on :8000 and `npm run dev` on :5173
+# End-to-end: 19 (Playwright) — requires backend on :8000 and `npm run dev` on :5173
 npx playwright install chromium   # first time only
 npm run e2e
 ```
@@ -189,10 +218,11 @@ backend/
     docker_integration/  Docker adapter (real + mock) and sync/detections
     virtualization/      VBoxManage wrapper (real + mock) and sync/detections
     security_engine/     detection rules and evaluation engine
+    compliance/          CIS-inspired checklist, automated checks, posture scoring
     integrity/           file integrity monitoring
     ml_engine/           Isolation Forest anomaly detector
     reports/             PDF/CSV report generator
-    services/            alerts, settings, seeding, scheduler
+    services/            alerts, notifications, incidents, topology, capacity, diagnostics, demo, settings, scheduler
     realtime/            WebSocket hub
   alembic/               database migrations
   scripts/               demo scenarios, API doc generator
@@ -233,6 +263,9 @@ docker-compose.yml
 | Adding a directory to FIM is rejected | System locations, drive roots and folders containing `AppData`/`.ssh` are blocked by design; choose a specific folder. |
 | `npm test` fails with “Vitest failed to find the runner” on Windows | Open the terminal in the path with an upper-case drive letter (`C:\…`, not `c:\…`); this is a Vitest path-casing issue. |
 | Process table slow on first load | The first scan of all processes takes ~1–2 s on Windows; results are cached for 5 s. |
+| Capacity Planning says “Not enough history yet” | Estimates need at least 3 hours of samples across 12 time buckets; use the Demo & Learning forecast meanwhile. |
+| Demo alerts do not appear in the Alert Center | By design — tick **Show demonstration data** or use the Demo & Learning page. |
+| E2E tests fail with “Too many requests” | The auth rate limit (20/min per IP) is working; wait a minute between full runs. |
 
 ## Responsible use
 
