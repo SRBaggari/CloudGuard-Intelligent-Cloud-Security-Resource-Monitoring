@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, tokens } from "./api";
+import { useTheme } from "./theme";
 import type { TokenPair, User } from "./types";
 
 interface AuthState {
@@ -16,6 +17,12 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
+  const { setPreference } = useTheme();
+
+  // apply the theme saved in the user's profile when they sign in
+  useEffect(() => {
+    if (user?.theme_preference) setPreference(user.theme_preference);
+  }, [user?.id, user?.theme_preference]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshUser = useCallback(async () => {
     if (!tokens.access) {

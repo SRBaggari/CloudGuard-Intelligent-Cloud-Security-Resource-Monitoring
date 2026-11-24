@@ -15,6 +15,7 @@ export interface User {
   full_name: string;
   role_name: "admin" | "user";
   is_active: boolean;
+  theme_preference?: "dark" | "light" | "system";
   last_login_at: string | null;
   created_at: string;
 }

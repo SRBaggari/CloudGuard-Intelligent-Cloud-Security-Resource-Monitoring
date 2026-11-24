@@ -6,7 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CloudGuard — Cloud Security & Resource Monitoring</title>
     <script>
-      try { if (localStorage.getItem("cg-theme") === "light") document.documentElement.classList.replace("dark", "light"); } catch (e) {}
+      try {
+        var p = localStorage.getItem("cg-theme");
+        var light = p === "light" || ((p === "system" || !p) && window.matchMedia("(prefers-color-scheme: light)").matches);
+        if (light) document.documentElement.classList.replace("dark", "light");
+      } catch (e) {}
     </script>
   </head>
   <body>

@@ -274,7 +274,13 @@ function ProfileMenu() {
 
 export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { theme, toggle } = useTheme();
+  const { theme, setPreference } = useTheme();
+  const { user } = useAuth();
+  const toggle = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setPreference(next);
+    if (user) api("/api/auth/me", { method: "PATCH", body: { theme_preference: next } }).catch(() => {}); // persist to profile
+  };
   const location = useLocation();
   useEffect(() => setMobileOpen(false), [location.pathname]);
 
