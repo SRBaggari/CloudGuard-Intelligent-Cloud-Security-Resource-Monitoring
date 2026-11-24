@@ -119,3 +119,16 @@ test("audit log filters and exports CSV", async ({ page }) => {
   await page.getByRole("button", { name: "Export CSV" }).click();
   expect((await download).suggestedFilename()).toBe("cloudguard-audit-log.csv");
 });
+
+test("capacity planning shows estimates or explains missing history", async ({ page }) => {
+  await login(page);
+  await page.goto("/capacity");
+  await expect(page.getByRole("heading", { name: "Capacity Planning" })).toBeVisible();
+  await expect(page.getByText("Estimates are not measurements")).toBeVisible();
+  const insufficient = page.getByText("Not enough history yet");
+  const ready = page.getByText("Estimate (linear trend)").first();
+  await expect(insufficient.or(ready)).toBeVisible();
+  if (await ready.isVisible()) await expect(page.getByText("Measured (bucket average)").first()).toBeVisible();
+  await page.waitForTimeout(500);
+  await shot(page, "21-capacity");
+});
