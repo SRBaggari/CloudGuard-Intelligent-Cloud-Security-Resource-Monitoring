@@ -31,6 +31,8 @@ class User(TimestampMixin, Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     failed_login_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # lowest alert severity that produces an in-app notification for this user
+    notification_min_severity: Mapped[str] = mapped_column(String(16), default="low", server_default="low", nullable=False)
 
     role: Mapped[Role] = relationship(back_populates="users", lazy="joined")
 

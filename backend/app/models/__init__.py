@@ -1,3 +1,4 @@
+from app.models.notification import Notification
 from app.models.infrastructure import Container, Device, SystemMetric, VirtualMachine
 from app.models.security import (
     Alert,
@@ -13,7 +14,7 @@ from app.models.user import LoginAttempt, RefreshToken, Role, User
 
 __all__ = [
     "ActivityLog", "Alert", "AnomalyRecord", "Container", "DetectionRule", "Device",
-    "FileIntegrityChange", "FileIntegrityRecord", "LoginAttempt", "MonitoredDirectory",
+    "FileIntegrityChange", "FileIntegrityRecord", "LoginAttempt", "MonitoredDirectory", "Notification",
     "RefreshToken", "Report", "Role", "SecurityEvent", "SystemMetric", "SystemSetting",
     "User", "VirtualMachine",
 ]
