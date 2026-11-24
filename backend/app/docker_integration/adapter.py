@@ -228,7 +228,7 @@ class MockDockerAdapter:
     def inspect(self, ref: str) -> dict[str, Any]:
         c = self._find(ref)
         return {**c, "created": c["started_at"], "command": ["demo"], "entrypoint": None, "env_keys": ["PATH"],
-                "labels": {"cloudguard.demo": "true"}, "ports": {}, "networks": ["bridge"], "mounts": [],
+                "labels": {"cloudguard.demo": "true"}, "ports": {}, "mounts": [],
                 "restart_policy": {"Name": "no"}, "memory_limit": 0, "nano_cpus": 0, "privileged": False}
 
     def stats(self, ref: str) -> dict[str, Any]:
