@@ -155,6 +155,8 @@ def update_me(body: ProfileUpdate, request: Request, user: User = Depends(get_cu
         user.email = body.email.lower()
     if body.full_name is not None:
         user.full_name = body.full_name
+    if body.theme_preference is not None:
+        user.theme_preference = body.theme_preference
     db.commit()
     audit(db, "user.profile_updated", user.id, "user", user.id, ip=client_ip(request))
     return user

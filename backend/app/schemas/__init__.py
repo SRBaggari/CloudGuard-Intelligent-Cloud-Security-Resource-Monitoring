@@ -85,6 +85,7 @@ class UserOut(ORM):
     full_name: str
     role_name: str
     is_active: bool
+    theme_preference: str = "system"
     last_login_at: DT | None
     created_at: DT
 
@@ -92,6 +93,7 @@ class UserOut(ORM):
 class ProfileUpdate(BaseModel):
     full_name: str | None = Field(default=None, max_length=128)
     email: EmailStr | None = None
+    theme_preference: Literal["dark", "light", "system"] | None = None
 
 
 class PasswordChange(BaseModel):

@@ -123,3 +123,12 @@ def test_new_ip_detection(client, db):
     login(client, "root")
     alert = db.scalar(select(Alert).where(Alert.fingerprint.like("auth_new_ip%")))
     assert alert is not None and alert.severity == "low"
+
+
+def test_theme_preference_saved_on_profile(client):
+    register(client, "root")
+    h = auth_headers(login(client, "root"))
+    assert client.get("/api/auth/me", headers=h).json()["theme_preference"] == "system"
+    assert client.patch("/api/auth/me", json={"theme_preference": "light"}, headers=h).json()["theme_preference"] == "light"
+    assert client.patch("/api/auth/me", json={"theme_preference": "neon"}, headers=h).status_code == 422
+    assert login(client, "root")["user"]["theme_preference"] == "light"
