@@ -163,3 +163,47 @@ test("settings: thresholds, diagnostics and saved theme preference", async ({ pa
   await page.getByLabel("Appearance").selectOption("dark");
   await expect(page.locator("html")).toHaveClass(/dark/);
 });
+
+test("demo & learning: labelled environment, scenarios, incident walkthrough, separation", async ({ page }) => {
+  await login(page);
+  const headers = await authHeaders(page);
+  await page.request.post("/api/demo/reset", { headers });
+  await page.goto("/demo");
+  await expect(page.getByText("DEMONSTRATION ENVIRONMENT", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Create demo environment" }).click();
+  await expect(page.getByText("Demonstration environment created")).toBeVisible();
+  const card = (title: string) => page.getByRole("group", { name: title, exact: true });
+  await card("CPU saturation").getByRole("button", { name: "Run scenario" }).click();
+  await expect(page.getByText(/Last run: .*Cpu Spike/)).toBeVisible();
+  await card("Container crash (exit 137)").getByRole("button", { name: "Run scenario" }).click();
+  await card("Incident walkthrough").getByRole("button", { name: "Run scenario" }).click();
+  await expect(page.getByRole("link", { name: /open INC-/ })).toBeVisible();
+  await page.getByRole("button", { name: "Demo topology" }).click();
+  await expect(page.getByRole("button", { name: /Container demo-api: Critical/ })).toBeVisible();
+  await page.waitForTimeout(600);
+  await shot(page, "23-demo-center");
+  await page.getByRole("button", { name: "Demo capacity forecast" }).click();
+  await expect(page.getByText("Estimate (linear trend)").first()).toBeVisible();
+  await page.getByText("Estimate (linear trend)").first().scrollIntoViewIfNeeded();
+  await shot(page, "24-capacity-demo-forecast");
+
+  await page.getByRole("link", { name: /open INC-/ }).click();
+  await expect(page.getByText("Demonstration data")).toBeVisible();
+
+  // real alert center hides demo alerts unless explicitly shown
+  await page.goto("/alerts?q=demo-api");
+  await page.getByLabel("Search alerts").fill("demo-api");
+  await expect(page.getByText("No alerts match these filters")).toBeVisible();
+  await page.getByLabel("Show demonstration data").check();
+  await expect(page.getByText("DEMO").first()).toBeVisible();
+});
+
+test("project information page explains the concepts", async ({ page }) => {
+  await login(page);
+  await page.goto("/about");
+  await expect(page.getByRole("heading", { name: "Project information" })).toBeVisible();
+  for (const t of ["Cloud computing", "Virtualisation", "Containerisation", "Security monitoring"]) {
+    await expect(page.getByRole("heading", { name: t, exact: true })).toBeVisible();
+  }
+  await shot(page, "25-project-information");
+});
