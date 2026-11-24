@@ -21,9 +21,10 @@ const THRESHOLD_FIELDS: Record<string, { label: string; unit: string }[]> = {
 function ThresholdRow({ rule, onSaved }: { rule: Rule; onSaved: () => void }) {
   const toast = useToast();
   const fields = THRESHOLD_FIELDS[rule.key];
-  const [values, setValues] = useState<Record<string, string>>({});
+  const fromRule = () => Object.fromEntries(fields.map((f) => [f.label, String(rule.params[f.label] ?? "")]));
+  const [values, setValues] = useState<Record<string, string>>(fromRule);
   const [saving, setSaving] = useState(false);
-  useEffect(() => setValues(Object.fromEntries(fields.map((f) => [f.label, String(rule.params[f.label] ?? "")]))), [rule]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => setValues(fromRule()), [rule]); // eslint-disable-line react-hooks/exhaustive-deps
   const dirty = fields.some((f) => values[f.label] !== String(rule.params[f.label] ?? ""));
 
   async function save() {
