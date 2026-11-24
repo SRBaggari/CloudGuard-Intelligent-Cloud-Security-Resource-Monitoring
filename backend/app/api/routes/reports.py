@@ -43,6 +43,11 @@ def generate(body: ReportRequest, request: Request, user: User = Depends(get_cur
     if (body.end_date - body.start_date).days > 366:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Date range may not exceed one year")
     data = gather(db, body.start_date, body.end_date)
+    if "posture" in body.sections:
+        if not user.is_admin:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Security posture reports are available to administrators only")
+        from app.compliance.service import run_checks
+        data["posture"] = run_checks(db, user)  # evaluate now so the report reflects the current state
     file_name = f"cloudguard-report-{uuid.uuid4().hex[:12]}.{body.format}"
     path = get_settings().data_dir / "reports" / file_name
     if body.format == "pdf":

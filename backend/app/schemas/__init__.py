@@ -297,7 +297,7 @@ class ReportRequest(BaseModel):
     format: Literal["pdf", "csv"] = "pdf"
     start_date: DT
     end_date: DT
-    sections: list[Literal["health", "resources", "incidents", "containers", "vms", "anomalies", "alerts"]] = Field(
+    sections: list[Literal["health", "resources", "incidents", "containers", "vms", "anomalies", "alerts", "posture"]] = Field(
         default_factory=lambda: ["health", "resources", "incidents", "containers", "vms", "anomalies", "alerts"]
     )
 

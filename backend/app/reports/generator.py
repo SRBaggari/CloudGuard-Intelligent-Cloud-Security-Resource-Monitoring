@@ -81,8 +81,14 @@ def gather(db: Session, start: datetime, end: datetime) -> dict[str, Any]:
     }
 
 
+POSTURE_DISCLAIMER = ("Checks are inspired by CIS Controls v8 and CIS Benchmarks. "
+                      "This is not a formal CIS assessment or certification.")
+
+
 def summary_of(data: dict[str, Any]) -> dict[str, Any]:
+    posture = data.get("posture")
     return {
+        **({"posture_score": posture.score, "posture_grade": posture.grade} if posture else {}),
         "health": data["health"], "samples": data["resources"]["samples"], "alerts": len(data["alerts"]),
         "alerts_by_severity": data["alerts_by_severity"], "events": data["events_total"],
         "anomalies": len(data["anomalies"]), "containers": len(data["containers"]), "vms": len(data["vms"]),
@@ -138,6 +144,18 @@ def render_csv(data: dict[str, Any], sections: list[str], path: Path) -> None:
         for a in data["alerts"]:
             w.writerow([a.id, a.created_at.isoformat(), a.severity, a.category, a.status, a.title,
                         a.resource_name, a.occurrences])
+        w.writerow([])
+    if "posture" in sections and data.get("posture"):
+        p = data["posture"]
+        w.writerow(["# Security posture"])
+        w.writerow(["score", p.score])
+        w.writerow(["grade", p.grade])
+        w.writerow(["assessed_at", p.created_at.isoformat()])
+        w.writerow(["note", POSTURE_DISCLAIMER])
+        w.writerow(["category", "check", "severity", "type", "status", "evidence", "reference", "remediation"])
+        for r in p.results:
+            w.writerow([r["category"], r["title"], r["severity"], r["type"], r["status"], r["evidence"],
+                        r["reference"], r["remediation"]])
     path.write_text(buf.getvalue(), encoding="utf-8", newline="")
 
 
@@ -263,6 +281,22 @@ def render_pdf(data: dict[str, Any], sections: list[str], title: str, path: Path
                 widths=[22 * mm, 18 * mm, 24 * mm, 70 * mm, 36 * mm]))
         else:
             el.append(Paragraph("No alerts in this period.", body))
+
+    if "posture" in sections and data.get("posture"):
+        p = data["posture"]
+        status_color = {"pass": "#16a34a", "fail": "#dc2626", "warning": "#d97706"}
+        el += [Paragraph("Security posture", h2), Paragraph(
+            f"Posture score <b>{p.score:.1f}/100</b> (grade <b>{p.grade}</b>) · assessed {p.created_at:%Y-%m-%d %H:%M} UTC · "
+            + " · ".join(f"{k.replace('_', ' ')}: {v}" for k, v in sorted(p.counts.items())), body),
+            Paragraph(f"<i>{POSTURE_DISCLAIMER}</i>", small), Spacer(1, 3 * mm)]
+        rows = [["Category", "Check", "Sev.", "Status", "Evidence / remediation"]]
+        for r in p.results:
+            col = status_color.get(r["status"], "#64748b")
+            fix = f"<br/><font color='#64748b'>Fix: {r['remediation'][:160]}</font>" if r["status"] in ("fail", "warning") and r["remediation"] else ""
+            rows.append([r["category"], Paragraph(r["title"][:90], small), r["severity"],
+                         Paragraph(f"<font color='{col}'><b>{r['status'].replace('_', ' ')}</b></font>", small),
+                         Paragraph(r["evidence"][:220].replace("<", "&lt;") + fix, small)])
+        el.append(table(rows, widths=[22 * mm, 46 * mm, 14 * mm, 20 * mm, 72 * mm]))
 
     doc = SimpleDocTemplate(str(path), pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
                             topMargin=16 * mm, bottomMargin=16 * mm, title=title, author="CloudGuard")
