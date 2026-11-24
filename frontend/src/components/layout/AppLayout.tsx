@@ -8,7 +8,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { timeAgo } from "@/lib/format";
-import { useLiveChannel } from "@/lib/hooks";
+import { NOTIFICATIONS_CHANGED, useLiveChannel } from "@/lib/hooks";
 import { useTheme } from "@/lib/theme";
 import type { AppNotification, NotificationPage } from "@/lib/types";
 import { useToast } from "@/components/ui";
@@ -135,6 +135,8 @@ function NotificationBell() {
 
   useEffect(() => {
     load();
+    window.addEventListener(NOTIFICATIONS_CHANGED, load);
+    return () => window.removeEventListener(NOTIFICATIONS_CHANGED, load);
   }, []);
 
   const connected = useLiveChannel("notifications", (msg) => {

@@ -7,7 +7,7 @@ import {
 } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatDateTime, timeAgo, titleCase } from "@/lib/format";
-import { useApi, useLiveChannel } from "@/lib/hooks";
+import { emitNotificationsChanged, useApi, useLiveChannel } from "@/lib/hooks";
 import type { AppNotification, NotificationPage, Severity } from "@/lib/types";
 
 export default function Notifications() {
@@ -26,12 +26,14 @@ export default function Notifications() {
 
   async function markRead(n: AppNotification) {
     await api(`/api/notifications/${n.id}/read`, { method: "POST" });
+    emitNotificationsChanged();
     reload();
   }
 
   async function readAll() {
     const r = await api<{ detail: string }>("/api/notifications/read-all", { method: "POST" });
     toast({ tone: "good", title: r.detail });
+    emitNotificationsChanged();
     reload();
   }
 

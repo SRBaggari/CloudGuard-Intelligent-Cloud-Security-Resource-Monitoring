@@ -83,3 +83,7 @@ export function useLiveChannel(channel: "monitoring" | "alerts" | "notifications
 
   return connected;
 }
+
+/** Notify other components (e.g. the top-bar bell) that notification read-state changed. */
+export const NOTIFICATIONS_CHANGED = "cg:notifications-changed";
+export const emitNotificationsChanged = () => window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED));
