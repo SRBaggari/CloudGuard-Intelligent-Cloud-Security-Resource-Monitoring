@@ -60,7 +60,7 @@ def create_incident(db: Session, *, title: str, description: str, severity: str 
     detected = min((a.created_at for a in alerts), default=None) or utcnow()
     inc = Incident(title=title, description=description, severity=severity, category=category,
                    assignee_id=assignee_id, created_by_id=user.id, detected_at=detected,
-                   is_demo=any(getattr(a, "is_demo", False) for a in alerts))
+                   is_demo=bool(alerts) and all(a.is_demo for a in alerts))
     inc.alerts = alerts
     db.add(inc)
     db.flush()
@@ -164,7 +164,7 @@ def _container(db: Session, ref: str) -> Container:
     conds = [Container.container_id == ref, Container.name == ref]
     if len(ref) >= 12:
         conds.append(Container.container_id.startswith(ref))
-    row = db.scalar(select(Container).where(or_(*conds)))
+    row = db.scalar(select(Container).where(or_(*conds), Container.is_demo.is_(False)))
     if row is None:
         raise IncidentError(f"Container '{ref}' not found")
     return row
@@ -184,7 +184,7 @@ def _execute(db: Session, action_type: str, target: str, force: bool, user: User
     if action_type == "vm_stop":
         from app.virtualization.service import mark_expected_stop, sync_vms
         from app.virtualization.vbox import get_vbox_adapter, validate_uuid
-        vm = db.scalar(select(VirtualMachine).where(VirtualMachine.uuid == validate_uuid(target)))
+        vm = db.scalar(select(VirtualMachine).where(VirtualMachine.uuid == validate_uuid(target), VirtualMachine.is_demo.is_(False)))
         if vm is None:
             raise IncidentError(f"VM '{target}' not found")
         mark_expected_stop(vm.uuid)

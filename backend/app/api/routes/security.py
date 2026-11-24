@@ -25,10 +25,12 @@ def events(
     params: PageParams = Depends(),
     category: str | None = Query(None, max_length=32), severity: str | None = Query(None, pattern=SEV_PATTERN),
     event_type: str | None = Query(None, max_length=64), q: str | None = Query(None, max_length=128),
-    start: datetime | None = None, end: datetime | None = None,
+    start: datetime | None = None, end: datetime | None = None, include_demo: bool = False,
     _: User = Depends(require_admin), db: Session = Depends(get_db),
 ):
     stmt = select(SecurityEvent).order_by(SecurityEvent.created_at.desc())
+    if not include_demo:
+        stmt = stmt.where(SecurityEvent.is_demo.is_(False))
     if category:
         stmt = stmt.where(SecurityEvent.category == category)
     if severity:
@@ -51,10 +53,16 @@ def alerts(
     severity: str | None = Query(None, pattern=SEV_PATTERN),
     category: str | None = Query(None, max_length=32), q: str | None = Query(None, max_length=128),
     start: datetime | None = None, end: datetime | None = None,
+    include_demo: bool = Query(False, description="Include labelled demonstration alerts"),
+    demo_only: bool = Query(False, description="Only demonstration alerts"),
     _: User = Depends(get_current_user), db: Session = Depends(get_db),
 ):
-    """Search and filter alerts. status=active returns open + acknowledged."""
+    """Search and filter alerts. status=active returns open + acknowledged. Demo alerts are excluded by default."""
     stmt = select(Alert).order_by(Alert.last_seen_at.desc())
+    if demo_only:
+        stmt = stmt.where(Alert.is_demo.is_(True))
+    elif not include_demo:
+        stmt = stmt.where(Alert.is_demo.is_(False))
     if status_ == "active":
         stmt = stmt.where(Alert.status != "resolved")
     elif status_:
@@ -74,8 +82,10 @@ def alerts(
 
 
 @router.get("/alerts/stats")
-def alert_stats(_: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    rows = db.execute(select(Alert.status, Alert.severity, func.count(Alert.id)).group_by(Alert.status, Alert.severity)).all()
+def alert_stats(include_demo: bool = False, _: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    demo = (Alert.is_demo.is_(False),) if not include_demo else ()
+    rows = db.execute(select(Alert.status, Alert.severity, func.count(Alert.id)).where(*demo)
+                      .group_by(Alert.status, Alert.severity)).all()
     by_sev = {s: 0 for s in ("critical", "high", "medium", "low")}
     by_status = {s: 0 for s in ("open", "acknowledged", "resolved")}
     active_by_sev = dict(by_sev)
@@ -84,7 +94,7 @@ def alert_stats(_: User = Depends(get_current_user), db: Session = Depends(get_d
         by_sev[sev] += n
         if st != "resolved":
             active_by_sev[sev] += n
-    cats = db.execute(select(Alert.category, func.count(Alert.id)).where(Alert.status != "resolved")
+    cats = db.execute(select(Alert.category, func.count(Alert.id)).where(Alert.status != "resolved", *demo)
                       .group_by(Alert.category)).all()
     return {"by_severity": by_sev, "by_status": by_status, "active_by_severity": active_by_sev,
             "active_by_category": {c: n for c, n in cats}}
