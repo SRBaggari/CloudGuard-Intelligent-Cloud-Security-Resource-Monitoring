@@ -167,14 +167,21 @@ test("report generation produces a downloadable PDF", async ({ page }) => {
   await expect(page.getByText("Report generated")).toBeVisible();
 });
 
-test("theme toggle switches to light mode", async ({ page }) => {
+test("theme toggle switches between dark and light", async ({ page }) => {
   await login(page);
+  // A new account follows the system setting, so the starting theme depends on the browser.
+  const html = page.locator("html");
+  await expect(html).toHaveClass(/(^|\s)(dark|light)(\s|$)/);
+  if (/(^|\s)light(\s|$)/.test((await html.getAttribute("class")) ?? "")) {
+    await page.getByRole("button", { name: /Switch to dark theme/ }).click();
+    await expect(html).toHaveClass(/dark/);
+  }
   await page.getByRole("button", { name: /Switch to light theme/ }).click();
-  await expect(page.locator("html")).toHaveClass(/light/);
+  await expect(html).toHaveClass(/light/);
   await page.waitForTimeout(2500);
   await shot(page, "15-dashboard-light");
   await page.getByRole("button", { name: /Switch to dark theme/ }).click();
-  await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect(html).toHaveClass(/dark/);
 });
 
 test("logout returns to login", async ({ page }) => {
